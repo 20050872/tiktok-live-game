@@ -5,7 +5,7 @@ import { getPrismaClient } from '../database/prisma';
 import { registerPublisher } from './routes/auth';
 import { getPublisherGameState, getPublisherInfo, publisherGameAction, startPublisherStream, stopPublisherStream } from './routes/publisher';
 import { simulateGameEvent, type SimulatedEventDependencies } from './routes/simulate-event';
-import { adminLicenses, shopierWebhook, storePlans, validateLicense } from './routes/licenses';
+import { adminLicenses, shopierOsbCallback, shopierWebhook, storePlans, validateLicense } from './routes/licenses';
 import type { PublisherGameSessionRegistry } from '../services/PublisherGameSessionRegistry';
 
 const testPagePath = join(process.cwd(), 'public', 'socket-test.html');
@@ -48,8 +48,8 @@ export const REGISTERED_HTTP_ROUTES = [
   'GET  /api/publisher/game-state/:token',
   'POST /api/publisher/game-action',
   'GET  /api/store/plans',
-  'POST /api/webhooks/shopier',
-  'POST /api/shopier/callback',
+  'POST /api/webhooks/shopier  (legacy HMAC callback)',
+  'POST /api/shopier/callback  (Shopier OSB res/hash)',
   'GET, POST, PATCH, DELETE /api/admin/licenses',
   'POST /api/licenses/validate',
   'POST /api/verify-license',
@@ -129,7 +129,11 @@ async function handleHttpRequest(
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
     await validateLicense(request, response); return;
   }
-  if (pathname === '/api/webhooks/shopier' || pathname === '/api/shopier/callback') {
+  if (pathname === '/api/shopier/callback') {
+    if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
+    await shopierOsbCallback(request, response); return;
+  }
+  if (pathname === '/api/webhooks/shopier') {
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
     await shopierWebhook(request, response); return;
   }

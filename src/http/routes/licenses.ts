@@ -10,6 +10,7 @@ const plans: Array<{ type: PlanType; label: string; days: number | null; amount:
   { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 1299), url: process.env.SHOPIER_LIFETIME_URL || '' },
 ];
 function send(response: ServerResponse, status: number, body: object) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(body)); }
+function sendOsb(response: ServerResponse, status: number, body: string) { response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(body); }
 function isRecord(value: unknown): value is RecordValue { return typeof value === 'object' && value !== null && !Array.isArray(value); }
 async function readBody(request: IncomingMessage): Promise<RecordValue> {
   const chunks: Buffer[] = []; let size = 0;
@@ -23,11 +24,104 @@ async function readBody(request: IncomingMessage): Promise<RecordValue> {
   if (!isRecord(parsed)) throw new Error('İstek gövdesi nesne olmalı.');
   return parsed;
 }
+async function readShopierOsbBody(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = []; let size = 0;
+  for await (const chunk of request) { const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); size += data.length; if (size > 32_768) throw new Error('İstek gövdesi çok büyük.'); chunks.push(data); }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  const type = request.headers['content-type']?.split(';', 1)[0].trim().toLowerCase();
+  if (type === 'application/json') return JSON.parse(raw) as unknown;
+  if (type === 'application/x-www-form-urlencoded' || !type) {
+    const params = new URLSearchParams(raw);
+    const direct = Object.fromEntries(params.entries());
+    const pairs = new Map<number, { name?: string; value?: string }>();
+    for (const [key, value] of params.entries()) {
+      const match = key.match(/^(?:body)?(?:\[(\d+)\]|(\d+))(?:\.|\[)(name|value)\]?$/i);
+      if (match) {
+        const index = Number(match[1] ?? match[2]); const pair = pairs.get(index) ?? {};
+        pair[match[3].toLowerCase() as 'name' | 'value'] = value; pairs.set(index, pair);
+      }
+    }
+    return pairs.size ? [...pairs.entries()].sort(([a], [b]) => a - b).map(([, pair]) => pair) : direct;
+  }
+  throw new Error('Shopier OSB form veya JSON gövdesi bekleniyor.');
+}
+function readOsbField(body: unknown, key: string): unknown {
+  if (Array.isArray(body)) {
+    const item = body.find((entry) => isRecord(entry) && clean(entry.name ?? entry.key, 24).toLowerCase() === key);
+    if (isRecord(item)) return item.value;
+    const positional = body[key === 'res' ? 0 : 1];
+    return isRecord(positional) ? positional.value : undefined;
+  }
+  if (isRecord(body)) {
+    if (body[key] !== undefined) return body[key];
+    if (Array.isArray(body.body)) return readOsbField(body.body, key);
+    const positional = body[key === 'res' ? '0' : '1'];
+    if (isRecord(positional)) return positional.value;
+  }
+  return undefined;
+}
+function findPlanInProductList(value: unknown): PlanType | null {
+  const strings: string[] = [];
+  const collect = (item: unknown): void => {
+    if (typeof item === 'string') {
+      const trimmed = item.trim();
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try { collect(JSON.parse(trimmed) as unknown); return; } catch { /* plain variation text */ }
+      }
+      strings.push(trimmed); return;
+    }
+    if (Array.isArray(item)) { item.forEach(collect); return; }
+    if (isRecord(item)) Object.entries(item).forEach(([name, child]) => { strings.push(name); collect(child); });
+  };
+  collect(value);
+  for (const candidate of strings) { const plan = parsePlan(candidate); if (plan) return plan; }
+  return null;
+}
+
+/** Shopier OSB sends form fields res/hash; this is intentionally separate from the legacy payment callback. */
+export async function shopierOsbCallback(request: IncomingMessage, response: ServerResponse): Promise<void> {
+  let body: unknown;
+  try { body = await readShopierOsbBody(request); }
+  catch { sendOsb(response, 400, 'missing parameter'); return; }
+  const encodedRes = readOsbField(body, 'res');
+  const receivedHash = clean(readOsbField(body, 'hash'), 256).toLowerCase();
+  const username = process.env.SHOPIER_OSB_USERNAME?.trim() ?? '';
+  const key = process.env.SHOPIER_OSB_PASSWORD?.trim() ?? '';
+  if (typeof encodedRes !== 'string' || !encodedRes || !receivedHash || !username || !key) { sendOsb(response, 400, 'missing parameter'); return; }
+
+  const expectedHash = createHmac('sha256', key).update(`${encodedRes}${username}`).digest('hex');
+  const expectedBytes = Buffer.from(expectedHash, 'hex'); const receivedBytes = Buffer.from(receivedHash, 'hex');
+  if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) { sendOsb(response, 401, 'unauthorized'); return; }
+
+  let payload: unknown;
+  try {
+    const decoded = Buffer.from(encodedRes, 'base64');
+    if (!decoded.length || decoded.toString('base64').replace(/=+$/, '') !== encodedRes.replace(/\s/g, '').replace(/=+$/, '')) throw new Error('bad base64');
+    payload = JSON.parse(decoded.toString('utf8')) as unknown;
+  } catch { sendOsb(response, 400, 'invalid res'); return; }
+  if (!isRecord(payload)) { sendOsb(response, 400, 'invalid res'); return; }
+
+  const orderId = clean(payload.orderid ?? payload.order_id ?? payload.platform_order_id, 160);
+  const buyerEmail = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
+  const customerName = [clean(payload.buyername ?? payload.customer_name, 100), clean(payload.buyersurname ?? payload.buyer_surname, 100)].filter(Boolean).join(' ').trim() || buyerEmail;
+  const plan = findPlanInProductList(payload.productlist) ?? plans.find((candidate) => Math.abs(candidate.amount - Number(String(payload.price ?? '').replace(',', '.'))) < 0.005)?.type ?? null;
+  if (!orderId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail) || !plan) { sendOsb(response, 400, 'invalid order'); return; }
+
+  try {
+    const prisma = getPrismaClient();
+    const existing = await prisma.license.findUnique({ where: { orderId } });
+    if (!existing) await LicenseService.create({ customerName, buyerEmail, orderId, planType: plan });
+    sendOsb(response, 200, 'success');
+  } catch {
+    console.error('[Shopier OSB] Lisans kaydı oluşturulamadı.');
+    sendOsb(response, 500, 'error');
+  }
+}
 function clean(value: unknown, max = 200): string { return typeof value === 'string' ? value.trim().slice(0, max) : typeof value === 'number' ? String(value) : ''; }
 function parsePlan(value: unknown): PlanType | null {
   const normalized = clean(value, 80).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
   if (normalized.includes('hafta') || normalized.includes('weekly') || normalized.includes('seven_days') || /(^|_)7(_|$)/.test(normalized)) return 'SEVEN_DAYS';
-  if (normalized.includes('aylik') || normalized.includes('monthly') || normalized.includes('one_month') || normalized.includes('thirty_days') || normalized.includes('30_days') || normalized.includes('1_month') || /(^|_)30(_|$)/.test(normalized)) return 'ONE_MONTH';
+  if (normalized.includes('aylik') || normalized.includes('1_ay') || normalized.includes('monthly') || normalized.includes('one_month') || normalized.includes('thirty_days') || normalized.includes('30_days') || normalized.includes('30_gun') || normalized.includes('1_month') || /(^|_)30(_|$)/.test(normalized)) return 'ONE_MONTH';
   return normalized.includes('lifetime') || normalized.includes('sinirsiz') || normalized.includes('omur_boyu') ? 'LIFETIME' : null;
 }
 function publicPlanType(plan: string): '7_days' | '1_month' | 'lifetime' {
