@@ -705,9 +705,10 @@ export type SubscriptionScalarFieldEnum = (typeof SubscriptionScalarFieldEnum)[k
 
 export const LicenseScalarFieldEnum = {
   id: 'id',
+  licenseKey: 'licenseKey',
   overlayToken: 'overlayToken',
   customerName: 'customerName',
-  customerEmail: 'customerEmail',
+  buyerEmail: 'buyerEmail',
   orderId: 'orderId',
   planType: 'planType',
   expiresAt: 'expiresAt',

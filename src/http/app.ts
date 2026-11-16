@@ -49,8 +49,10 @@ export const REGISTERED_HTTP_ROUTES = [
   'POST /api/publisher/game-action',
   'GET  /api/store/plans',
   'POST /api/webhooks/shopier',
+  'POST /api/shopier/callback',
   'GET, POST, PATCH, DELETE /api/admin/licenses',
   'POST /api/licenses/validate',
+  'POST /api/verify-license',
   'POST /api/publisher/start-stream  (alias: /publisher/start-stream)',
   'POST /api/publisher/stop-stream  (alias: /publisher/stop-stream)',
   'POST /api/test/simulate-event  (aliases: /api/simulate-event, /test/simulate-event, /simulate-event; trailing slash accepted)',
@@ -123,11 +125,11 @@ async function handleHttpRequest(
     if (request.method !== 'GET') { response.setHeader('Allow', 'GET'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca GET kabul eder.' }); return; }
     storePlans(request, response); return;
   }
-  if (pathname === '/api/licenses/validate') {
+  if (pathname === '/api/licenses/validate' || pathname === '/api/verify-license') {
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
     await validateLicense(request, response); return;
   }
-  if (pathname === '/api/webhooks/shopier') {
+  if (pathname === '/api/webhooks/shopier' || pathname === '/api/shopier/callback') {
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
     await shopierWebhook(request, response); return;
   }

@@ -15,7 +15,7 @@ enum SubscriptionStatus {
 
 enum LicensePlanType {
   SEVEN_DAYS  @map("7_DAYS")
-  THIRTY_DAYS @map("30_DAYS")
+  ONE_MONTH   @map("30_DAYS")
   LIFETIME
 }
 
@@ -40,9 +40,10 @@ model Subscription {
 
 model License {
   id            String          @id @default(uuid()) @db.Uuid
+  licenseKey    String          @unique @default(uuid()) @db.Uuid
   overlayToken  String          @unique @default(uuid()) @db.Uuid
   customerName  String
-  customerEmail String
+  buyerEmail    String          @default("") @map("customerEmail")
   orderId       String          @unique
   planType      LicensePlanType
   expiresAt     DateTime

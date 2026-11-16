@@ -6,7 +6,7 @@ import { LicenseService, type PlanType } from '../../services/LicenseService';
 type RecordValue = Record<string, unknown>;
 const plans: Array<{ type: PlanType; label: string; days: number | null; amount: number; url: string }> = [
   { type: 'SEVEN_DAYS', label: 'Haftalık', days: 7, amount: Number(process.env.SHOPIER_WEEKLY_AMOUNT || 149), url: process.env.SHOPIER_WEEKLY_URL || '' },
-  { type: 'THIRTY_DAYS', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 349), url: process.env.SHOPIER_MONTHLY_URL || '' },
+  { type: 'ONE_MONTH', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 349), url: process.env.SHOPIER_MONTHLY_URL || '' },
   { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 1299), url: process.env.SHOPIER_LIFETIME_URL || '' },
 ];
 function send(response: ServerResponse, status: number, body: object) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(body)); }
@@ -25,9 +25,13 @@ async function readBody(request: IncomingMessage): Promise<RecordValue> {
 }
 function clean(value: unknown, max = 200): string { return typeof value === 'string' ? value.trim().slice(0, max) : typeof value === 'number' ? String(value) : ''; }
 function parsePlan(value: unknown): PlanType | null {
-  if (value === '7_DAYS' || value === 'SEVEN_DAYS') return 'SEVEN_DAYS';
-  if (value === '30_DAYS' || value === 'THIRTY_DAYS') return 'THIRTY_DAYS';
-  return value === 'LIFETIME' ? 'LIFETIME' : null;
+  const normalized = clean(value, 80).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalized.includes('hafta') || normalized.includes('weekly') || normalized.includes('seven_days') || /(^|_)7(_|$)/.test(normalized)) return 'SEVEN_DAYS';
+  if (normalized.includes('aylik') || normalized.includes('monthly') || normalized.includes('one_month') || normalized.includes('thirty_days') || normalized.includes('30_days') || normalized.includes('1_month') || /(^|_)30(_|$)/.test(normalized)) return 'ONE_MONTH';
+  return normalized.includes('lifetime') || normalized.includes('sinirsiz') || normalized.includes('omur_boyu') ? 'LIFETIME' : null;
+}
+function publicPlanType(plan: string): '7_days' | '1_month' | 'lifetime' {
+  return plan === 'SEVEN_DAYS' ? '7_days' : plan === 'ONE_MONTH' ? '1_month' : 'lifetime';
 }
 function isAdmin(request: IncomingMessage): boolean {
   const configured = process.env.ADMIN_SECRET?.trim() || 'dev-admin-change-me';
@@ -47,16 +51,16 @@ function isAdmin(request: IncomingMessage): boolean {
   });
 }
 export function storePlans(_request: IncomingMessage, response: ServerResponse): void {
-  send(response, 200, { plans: plans.map(({ type, label, days, amount, url }) => ({ type: type === 'SEVEN_DAYS' ? '7_DAYS' : type === 'THIRTY_DAYS' ? '30_DAYS' : type, label, days, amount, currency: 'TRY', url })) });
+  send(response, 200, { plans: plans.map(({ type, label, days, amount, url }) => ({ type: type === 'SEVEN_DAYS' ? '7_days' : type === 'ONE_MONTH' ? '1_month' : 'lifetime', label, days, amount, currency: 'TRY', url })) });
 }
 
 export async function validateLicense(request: IncomingMessage, response: ServerResponse): Promise<void> {
   try {
     const body = await readBody(request);
-    const token = clean(body.overlayToken ?? body.token, 64);
+    const token = clean(body.licenseKey ?? body.overlayToken ?? body.token, 64);
     const license = await LicenseService.validateToken(token);
     if (!license) { send(response, 403, { status: 'error', message: 'Lisans süresi dolmuş veya geçersiz.' }); return; }
-    send(response, 200, { status: 'ok', license: { id: license.id, customerName: license.customerName, planType: license.planType, expiresAt: license.expiresAt, isActive: license.isActive } });
+    send(response, 200, { status: 'ok', license: { id: license.id, licenseKey: license.licenseKey, customerName: license.customerName, planType: publicPlanType(license.planType), expiresAt: license.expiresAt, isActive: license.isActive } });
   } catch (error) { send(response, 400, { status: 'error', message: error instanceof Error ? error.message : 'Geçersiz istek.' }); }
 }
 
@@ -77,20 +81,23 @@ export async function shopierWebhook(request: IncomingMessage, response: ServerR
   const expected = createHmac('sha256', secret).update(`${random}${orderId}${total}${currency}`).digest();
   if (received.length !== expected.length || !timingSafeEqual(received, expected)) { send(response, 401, { status: 'error', message: 'Shopier imzası geçersiz.' }); return; }
   const amount = Number(total.replace(',', '.'));
-  const plan = plans.find((candidate) => Math.abs(candidate.amount - amount) < 0.005);
+    const variationValue = body.product_variation ?? body.variation ?? body.variant ?? body.product_name ?? body.productName ?? body.item_name ?? body.option;
+    const variation = variationValue === undefined ? null : parsePlan(variationValue);
+    const amountPlan = plans.find((candidate) => Math.abs(candidate.amount - amount) < 0.005);
+    const plan = variation ? (amountPlan?.type === variation ? amountPlan : null) : amountPlan;
   if (!plan || !['TRY', '0'].includes(currency.toUpperCase())) { send(response, 400, { status: 'error', message: 'Ödeme tutarı tanımlı lisans paketleriyle eşleşmiyor.' }); return; }
   const customerName = [clean(body.first_name ?? body.customer_name ?? body.name, 100), clean(body.last_name, 100)].filter(Boolean).join(' ').trim();
-  const customerEmail = clean(body.email ?? body.customer_email, 254).toLowerCase();
-  if (!customerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) { send(response, 400, { status: 'error', message: 'Shopier müşteri adı veya e-postası geçersiz.' }); return; }
+    const buyerEmail = clean(body.email ?? body.customer_email ?? body.buyerEmail, 254).toLowerCase();
+    if (!customerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) { send(response, 400, { status: 'error', message: 'Shopier müşteri adı veya e-postası geçersiz.' }); return; }
   try {
     const prisma = getPrismaClient();
     const existing = await prisma.license.findUnique({ where: { orderId } });
-    if (existing) { send(response, 200, { status: 'ok', duplicate: true, overlayToken: existing.overlayToken, license: existing }); return; }
-    const license = await LicenseService.create({ customerName, customerEmail, orderId, planType: plan.type });
-    send(response, 201, { status: 'ok', overlayToken: license.overlayToken, license });
+    if (existing) { send(response, 200, { status: 'ok', duplicate: true, licenseKey: existing.licenseKey, overlayToken: existing.overlayToken, license: { ...existing, planType: publicPlanType(existing.planType) } }); return; }
+    const license = await LicenseService.create({ customerName, buyerEmail, orderId, planType: plan.type });
+    send(response, 201, { status: 'ok', licenseKey: license.licenseKey, overlayToken: license.overlayToken, license: { ...license, planType: publicPlanType(license.planType) } });
   } catch (error) {
     if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
-      try { const existing = await getPrismaClient().license.findUnique({ where: { orderId } }); if (existing) { send(response, 200, { status: 'ok', duplicate: true, overlayToken: existing.overlayToken, license: existing }); return; } } catch { /* handled below */ }
+      try { const existing = await getPrismaClient().license.findUnique({ where: { orderId } }); if (existing) { send(response, 200, { status: 'ok', duplicate: true, licenseKey: existing.licenseKey, overlayToken: existing.overlayToken, license: { ...existing, planType: publicPlanType(existing.planType) } }); return; } } catch { /* handled below */ }
     }
     console.error('[Shopier] Lisans webhook fulfillment failed.'); send(response, 503, { status: 'error', message: 'Sipariş lisansı oluşturulamadı; Shopier bildirimi tekrar deneyebilir.' });
   }
@@ -104,10 +111,10 @@ export async function adminLicenses(request: IncomingMessage, response: ServerRe
     if (!['POST', 'PATCH', 'DELETE'].includes(request.method ?? '')) { response.setHeader('Allow', 'GET, POST, PATCH, DELETE'); send(response, 405, { status: 'error', message: 'Bu endpoint GET, POST, PATCH ve DELETE kabul eder.' }); return; }
     const body = await readBody(request); const action = request.method === 'DELETE' ? 'deactivate' : clean(body.action, 32);
     if (action === 'create') {
-      const name = clean(body.customerName, 120); const email = clean(body.customerEmail, 254).toLowerCase(); const planType = parsePlan(body.planType);
+      const name = clean(body.customerName, 120); const email = clean(body.buyerEmail ?? body.customerEmail, 254).toLowerCase(); const planType = parsePlan(body.planType);
       if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !planType) { send(response, 400, { status: 'error', message: 'Ad, geçerli e-posta ve geçerli paket zorunlu.' }); return; }
       const orderId = clean(body.orderId, 160) || `ADMIN-${randomUUID()}`;
-      const license = await LicenseService.create({ customerName: name, customerEmail: email, orderId, planType }); send(response, 201, { status: 'ok', license }); return;
+      const license = await LicenseService.create({ customerName: name, buyerEmail: email, orderId, planType }); send(response, 201, { status: 'ok', licenseKey: license.licenseKey, license }); return;
     }
     const id = clean(body.id ?? new URL(request.url ?? '/', 'http://localhost').searchParams.get('id'), 64);
     if (!id) { send(response, 400, { status: 'error', message: 'Lisans ID gerekli.' }); return; }
