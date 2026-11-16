@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kırmızı vs Mavi Ordu</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f4f6ff;
+      background: transparent;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; background: transparent !important; }
+    body { padding: 28px; overflow: hidden; }
+    .overlay-layout { display: grid; grid-template-columns: minmax(380px, 540px) minmax(280px, 360px); gap: 16px; align-items: start; width: max-content; max-width: 100%; }
+    .card { border: 1px solid rgba(179, 194, 255, .2); border-radius: 18px; background: rgba(12, 15, 27, .86); box-shadow: 0 18px 48px rgba(0, 0, 0, .32); backdrop-filter: blur(12px); }
+    .boss-card { padding: 20px 22px 18px; }
+    .card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .eyebrow { margin: 0 0 5px; color: #aeb9d3; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 0; font-size: 23px; line-height: 1.2; letter-spacing: -.025em; }
+    h2 { margin: 0; font-size: 15px; letter-spacing: .01em; }
+    .boss-mark { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid rgba(171, 142, 255, .4); border-radius: 14px; background: linear-gradient(145deg, rgba(134, 91, 255, .35), rgba(45, 197, 255, .12)); color: #d8caff; font-size: 21px; }
+    .health-copy { display: flex; justify-content: space-between; align-items: end; margin: 23px 0 9px; gap: 12px; }
+    .health-label { color: #aeb9d3; font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .health-value { font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 850; }
+    .health-track { height: 19px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; background: rgba(255,255,255,.09); transform-origin: center; }
+    .health-fill { width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #58e3c2, #44c8f5 58%, #9b78ff); box-shadow: 0 0 20px rgba(74, 220, 225, .3); transition: width .45s cubic-bezier(.2,.75,.25,1), background .25s ease; }
+    .health-fill.low { background: linear-gradient(90deg, #ff647d, #ff9d66); box-shadow: 0 0 18px rgba(255, 91, 120, .34); }
+    .health-track.take-damage { animation: hp-hit .38s ease-out; }
+    @keyframes hp-hit { 0% { transform: translateX(0); filter: brightness(1); } 18% { transform: translateX(-5px); filter: brightness(1.8); } 38% { transform: translateX(5px); } 58% { transform: translateX(-3px); } 78% { transform: translateX(2px); } 100% { transform: translateX(0); filter: brightness(1); } }
+    .boss-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; color: #aeb9d3; font-size: 12px; }
+    .boss-foot strong { color: #f4f6ff; font-variant-numeric: tabular-nums; }
+    .players-card { min-height: 164px; padding: 17px 18px 12px; }
+    .players-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .player-count { padding: 4px 8px; border: 1px solid rgba(124, 102, 255, .34); border-radius: 99px; background: rgba(124, 102, 255, .14); color: #d7ccff; font-size: 11px; font-weight: 800; }
+    .player-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .player-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 9px; align-items: center; padding: 8px 9px; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(255,255,255,.045); }
+    .rank { color: #9aa8c4; font-size: 11px; font-weight: 800; text-align: center; }
+    .player-name { overflow: hidden; color: #f4f6ff; font-size: 13px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+    .player-meta { margin-top: 2px; color: #9aa8c4; font-size: 10px; }
+    .player-score { color: #8cebd4; font-size: 12px; font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .empty-state { margin: 0; padding: 20px 8px; color: #9aa8c4; font-size: 12px; text-align: center; }
+    .connection-status { position: fixed; right: 22px; bottom: 20px; display: inline-flex; align-items: center; gap: 8px; max-width: min(420px, calc(100vw - 36px)); padding: 8px 11px; border: 1px solid rgba(255,255,255,.14); border-radius: 99px; background: rgba(12,15,27,.83); box-shadow: 0 8px 28px rgba(0,0,0,.25); color: #c2cad9; font-size: 11px; line-height: 1.35; }
+    .status-dot { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #8791a7; }
+    .connection-status.online .status-dot { background: #50e0b4; box-shadow: 0 0 10px #50e0b4; }
+    .connection-status.error .status-dot { background: #ff647d; box-shadow: 0 0 10px #ff647d; }
+    .connection-status.online { color: #bdf8e8; }
+    .connection-status.error { color: #ffd2da; }
+    .stage { position: relative; display: grid; place-items: center; width: 100vw; height: 100vh; min-height: 460px; padding: 24px; overflow: hidden; }
+    .arena-title { position: fixed; top: 28px; left: 30px; color: rgba(224, 212, 255, .94); text-shadow: 0 3px 18px rgba(99, 62, 255, .5); }
+    .arena-title small { display: block; margin-bottom: 5px; color: #9db3d4; font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; }
+    .arena-title strong { font-size: 18px; letter-spacing: .04em; }
+    .arena { position: absolute; top: 51%; left: 50%; width: min(86vw, 1140px); height: min(78vh, 760px); min-height: 410px; transform: translate(-50%, -50%); }
+    .arena-glow { position: absolute; top: 50%; left: 50%; width: min(58vw, 680px); aspect-ratio: 1; border: 1px solid rgba(156, 128, 255, .16); border-radius: 50%; background: radial-gradient(circle, rgba(97, 64, 190, .13), rgba(10,12,24,.03) 58%, transparent 69%); box-shadow: inset 0 0 55px rgba(116, 79, 236, .08), 0 0 55px rgba(93, 64, 191, .12); transform: translate(-50%, -50%); }
+    .arena-glow::before, .arena-glow::after { content: ""; position: absolute; inset: 9%; border: 1px dashed rgba(140, 183, 255, .16); border-radius: 50%; }
+    .arena-glow::after { inset: 20%; border-style: solid; border-color: rgba(175, 143, 255, .1); }
+    .boss-stage { position: absolute; z-index: 2; top: 50%; left: 50%; display: grid; justify-items: center; width: min(520px, 60vw); padding: 24px 30px 20px; border: 1px solid rgba(180, 150, 255, .28); border-radius: 26px; background: linear-gradient(180deg, rgba(17,16,32,.88), rgba(13,15,27,.83)); box-shadow: 0 20px 70px rgba(0,0,0,.38), 0 0 55px rgba(127,80,255,.14); transform: translate(-50%, -50%); backdrop-filter: blur(10px); text-align: center; }
+    .boss-sprite { margin: -6px 0 2px; color: #f8d2fd; font-size: clamp(76px, 10vw, 130px); line-height: 1; filter: drop-shadow(0 8px 24px rgba(255,70,128,.28)); animation: boss-float 3s ease-in-out infinite; }
+    .boss-sprite.hit { animation: boss-hit .42s ease-out; }
+    .boss-sprite.meteor-hit { animation: meteor-hit .72s ease-out; }
+    @keyframes boss-float { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
+    @keyframes boss-hit { 15% { transform: translateX(-10px) scale(1.05); filter: brightness(2) drop-shadow(0 0 24px #ff607e); } 35% { transform: translateX(10px); } 65% { transform: translateX(-5px); } }
+    @keyframes meteor-hit { 0% { transform: translateY(-38px) scale(.82); filter: brightness(2.3) drop-shadow(0 0 32px #ffb15c); } 38% { transform: translateY(5px) scale(1.16); } 100% { transform: translateY(0) scale(1); } }
+    .boss-label { margin: 0 0 5px; color: #bba8ff; font-size: 10px; font-weight: 900; letter-spacing: .23em; text-transform: uppercase; }
+    .boss-name { margin: 0; color: #f4f2ff; font-size: clamp(20px, 3vw, 29px); font-weight: 900; letter-spacing: .045em; text-shadow: 0 3px 20px rgba(123,91,255,.4); }
+    .bar-block { width: 100%; margin-top: 17px; text-align: left; }
+    .bar-caption { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: #aeb9d3; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .bar-caption strong { color: #f3f4ff; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+    .arena-track { height: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); border-radius: 99px; background: rgba(255,255,255,.08); }
+    .arena-fill { width: 100%; height: 100%; border-radius: inherit; transition: width .45s cubic-bezier(.2,.75,.25,1); }
+    #boss-health-fill { background: linear-gradient(90deg, #ff526d, #ff9860 65%, #ffd36b); box-shadow: 0 0 18px rgba(255,86,105,.44); }
+    #mana-fill { background: linear-gradient(90deg, #3cbbff, #7c82ff 62%, #d38cff); box-shadow: 0 0 18px rgba(102,124,255,.42); }
+    .characters { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
+    .character { position: absolute; display: grid; justify-items: center; gap: 3px; width: 92px; transform: translate(-50%, -50%); animation: character-bob 2.5s ease-in-out infinite; }
+    @keyframes character-bob { 0%,100% { margin-top: 0; } 50% { margin-top: -7px; } }
+    .character.targeted .avatar-orb { border-color: #ff617e; box-shadow: 0 0 0 6px rgba(255,76,105,.12), 0 0 28px rgba(255,63,88,.8); animation: target-pulse .55s ease-in-out infinite alternate; }
+    @keyframes target-pulse { from { transform: scale(1); } to { transform: scale(1.13); } }
+    .avatar-orb { display: grid; place-items: center; width: 54px; height: 54px; border: 1px solid rgba(174,162,255,.58); border-radius: 18px; background: linear-gradient(145deg, rgba(75,68,126,.94), rgba(27,32,53,.95)); box-shadow: 0 8px 22px rgba(0,0,0,.4); font-size: 28px; }
+    .character-name { max-width: 100%; overflow: hidden; padding: 3px 7px; border: 1px solid rgba(255,255,255,.12); border-radius: 99px; background: rgba(10,12,23,.83); color: #f0f2ff; font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .character-role { color: #aeb9d3; font-size: 9px; text-shadow: 0 1px 4px #080a12; }
+    .character-health { width: 54px; height: 4px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.2); }
+    .character-health span { display: block; height: 100%; border-radius: inherit; background: #63e6bd; }
+    .leaderboard { position: fixed; z-index: 5; top: 25px; right: 25px; display: grid; gap: 11px; width: min(330px, 31vw); padding: 16px; border: 1px solid rgba(179,194,255,.2); border-radius: 17px; background: rgba(12,15,27,.88); box-shadow: 0 14px 40px rgba(0,0,0,.28); backdrop-filter: blur(10px); }
+    .leaderboard h2 { margin: 0; font-size: 14px; letter-spacing: .04em; }
+    .leader-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .leader-title { margin: 0 0 6px; color: #aeb9d3; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+    .leader-list { display: grid; gap: 5px; min-height: 28px; margin: 0; padding: 0; list-style: none; }
+    .leader-list li { display: flex; justify-content: space-between; gap: 6px; color: #eceeff; font-size: 10px; }
+    .leader-list .leader-value { color: #91ead3; font-weight: 850; white-space: nowrap; }
+    .guild-battle { padding-top: 8px; border-top: 1px solid rgba(255,255,255,.1); }
+    .guild-battle-head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; color:#c6c7f4; font-size:9px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; }
+    .guild-scoreline { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:7px; color:#e7e9ff; font-size:10px; font-weight:850; }
+    .guild-scoreline span:last-child { text-align:right; }
+    .guild-scoreline .royal { color:#8ee5ff; }
+    .guild-scoreline .shadow { color:#d3a2ff; }
+    .guild-track { height:5px; margin-top:6px; overflow:hidden; border-radius:99px; background:rgba(255,255,255,.09); }
+    .guild-fill { height:100%; width:50%; background:linear-gradient(90deg,#47c9ff,#956fff); transition:width .35s ease; }
+    .toast { position: fixed; z-index: 10; top: 25px; left: 50%; max-width: min(640px, 78vw); padding: 12px 19px; border: 1px solid rgba(197,174,255,.45); border-radius: 999px; background: rgba(19,17,38,.94); box-shadow: 0 9px 34px rgba(0,0,0,.4), 0 0 22px rgba(125,87,255,.19); color: #f2edff; font-size: 13px; font-weight: 850; text-align: center; opacity: 0; transform: translate(-50%, -15px) scale(.96); transition: opacity .2s, transform .2s; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    .toast.meteor { border-color: rgba(255,160,81,.6); color: #ffdfb5; box-shadow: 0 0 34px rgba(255,104,50,.24); }
+    .toast.boss-target, .toast.boss-hit { border-color: rgba(255,91,120,.6); color: #ffd3dc; box-shadow: 0 0 34px rgba(255,62,104,.25); }
+    .mana-blast-label { position: fixed; top: 22%; left: 50%; z-index: 4; color: #a9c9ff; font-size: clamp(13px, 2vw, 22px); font-weight: 950; letter-spacing: .17em; text-shadow: 0 0 22px #776bff; opacity: 0; transform: translate(-50%, 10px); pointer-events: none; }
+    .mana-blast-label.show { animation: blast-callout 1s ease-out; }
+    @keyframes blast-callout { 12% { opacity: 1; transform: translate(-50%,0) scale(1.08); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-22px) scale(.98); } }
+    .mvp-crown { margin-right: 3px; color: #ffd36b; }
+    @media (max-width: 820px) { .stage { padding: 13px; } .arena-title { top: 14px; left: 14px; } .arena-title strong { font-size: 14px; } .leaderboard { top: auto; right: 12px; bottom: 12px; width: min(290px, 48vw); } .boss-stage { width: min(390px, 65vw); padding: 16px 18px; } .boss-sprite { font-size: 76px; } .character { width: 70px; } .avatar-orb { width: 43px; height: 43px; font-size: 23px; } .connection-status { right: auto; left: 12px; bottom: 12px; } }
+    @media (max-width: 520px) { .arena { width: 100vw; height: 68vh; } .boss-stage { width: 68vw; } .boss-sprite { font-size: 60px; } .boss-name { font-size: 17px; } .leaderboard { width: 47vw; padding: 10px; } .leaderboard h2 { font-size: 11px; } .leader-title { font-size: 8px; } .leader-list li { font-size: 9px; } .arena-title strong { font-size: 12px; } .character { width: 57px; } .avatar-orb { width: 36px; height: 36px; border-radius: 12px; font-size: 20px; } .character-name { font-size: 8px; } }
+    @media (max-width: 820px) {
+      body { padding: 16px; }
+      .overlay-layout { grid-template-columns: minmax(280px, 1fr); width: min(100%, 540px); }
+      .players-card { max-width: 100%; }
+      .connection-status { right: 14px; bottom: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+    body > :not(#army-overlay):not(script) { display:none !important; }
+    #army-overlay { position:fixed; inset:0; overflow:hidden; background:transparent; color:#fff; }
+    #army-canvas { position:absolute; inset:0; width:100%; height:100%; }
+    #army-hud { position:absolute; z-index:5; top:18px; left:50%; width:min(1100px,96vw); transform:translateX(-50%); padding:14px 18px; border:1px solid #ffffff30; border-radius:18px; background:#080d19cc; box-shadow:0 10px 35px #0007; backdrop-filter:blur(9px); }
+    #army-score { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; font-weight:850; font-size:clamp(12px,1.45vw,18px); }
+    #army-score .red { color:#ff7777 } #army-score .blue { color:#79baff; text-align:right }
+    #army-clock { color:white; text-align:center; font-size:clamp(19px,2.3vw,30px); font-variant-numeric:tabular-nums; }
+    #army-phase { color:#c5d2ea; font-size:11px; text-align:center; margin-top:3px; }
+    #army-power { height:9px; display:flex; margin-top:12px; overflow:hidden; border-radius:99px; background:#ffffff25; }
+    #army-red-power { background:linear-gradient(90deg,#ff303d,#ff8158); transition:width .4s }
+    #army-blue-power { flex:1; background:linear-gradient(90deg,#629eff,#3154ff); }
+    #army-winner { position:absolute; z-index:6; top:30%; left:50%; transform:translate(-50%,-50%) scale(.9); opacity:0; padding:20px 38px; border:1px solid #fff8; border-radius:20px; background:#10182ddd; font-size:clamp(25px,5vw,58px); font-weight:1000; text-shadow:0 0 22px currentColor; transition:.25s; }
+    #army-winner.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+    #army-status { position:absolute; right:16px; bottom:12px; z-index:8; padding:6px 10px; border-radius:20px; background:#080d19a8; color:#e0e7f2; font-size:11px; }
+    #army-leaderboard { position:absolute; z-index:5; top:116px; right:18px; width:min(300px,28vw); padding:13px; border:1px solid #ffffff30; border-radius:15px; background:#101725c9; box-shadow:0 12px 36px #0006; backdrop-filter:blur(12px); }
+    #army-leaderboard h2 { margin:0 0 9px; color:#ffe08a; font-size:12px; letter-spacing:.04em; }
+    #army-leader-list { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
+    .army-leader-row { display:grid; grid-template-columns:22px minmax(0,1fr) auto auto; gap:6px; align-items:center; min-height:24px; padding:3px 5px; border-radius:7px; color:#edf3ff; font-size:11px; transition:background .3s,transform .3s; }
+    .army-leader-row.changed { animation:leader-glow 1s ease-out; }
+    .army-leader-rank { color:#ffd66f; font-weight:900; }
+    .army-leader-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .army-leader-coins { color:#9fe8d0; font-variant-numeric:tabular-nums; font-weight:800; }
+    @keyframes leader-glow { 0%{background:#ffe58b70;transform:translateX(-5px)} 100%{background:transparent;transform:translateX(0)} }
+    @media(max-width:700px){#army-leaderboard{top:105px;right:8px;width:min(250px,42vw);padding:9px}.army-leader-row{font-size:9px;min-height:21px}}
+    @media(max-width:550px){#army-hud{top:8px;padding:10px} #army-score{gap:5px} #army-status{right:7px;bottom:7px}}
+  </style>
+</head>
+<body>
+  <div id="army-overlay" aria-label="Kırmızı Mavi ordu savaşı">
+    <canvas id="army-canvas"></canvas>
+    <header id="army-hud"><div id="army-score"><span id="army-red" class="red">KIRMIZI TAKIM: 0 Kişi | 0 Güç</span><div><div id="army-clock">02:00</div><div id="army-phase">HAZIRLIK · TUR 1</div></div><span id="army-blue" class="blue">MAVİ TAKIM: 0 Kişi | 0 Güç</span></div><div id="army-power"><div id="army-red-power" style="width:50%"></div><div id="army-blue-power"></div></div></header>
+    <aside id="army-leaderboard"><h2>🏆 EN ÇOK BAĞIŞ ATANLAR (TOP 10)</h2><ol id="army-leader-list"></ol></aside>
+    <div id="army-winner"></div><div id="army-status">Token bekleniyor…</div>
+  </div>
+  <main class="stage" aria-label="Kraliyet Arenası canlı yayın overlay">
+    <div class="arena-title"><small>TikTokLiveGame</small><strong>KRALİYET ARENASI · BOSS KUŞATMASI</strong></div>
+    <aside class="leaderboard" aria-label="Liderlik tablosu">
+      <h2>🏆 Liderlik Tablosu</h2>
+      <div class="leader-columns">
+        <section><p class="leader-title">En çok hasar</p><ol id="damage-leaders" class="leader-list"><li>Henüz savaşçı yok</li></ol></section>
+        <section><p class="leader-title">Destekçiler</p><ol id="support-leaders" class="leader-list"><li>Henüz destek yok</li></ol></section>
+      </div>
+      <section class="guild-battle" aria-label="Lonca savaşı skoru"><div class="guild-battle-head"><span>⚔ Lonca Savaşı</span><span id="guild-members">0 / 0</span></div><div class="guild-scoreline"><span id="royal-score" class="royal">Kraliyet 0</span><span>VS</span><span id="shadow-score" class="shadow">Gölge 0</span></div><div class="guild-track"><div id="guild-fill" class="guild-fill"></div></div></section>
+      <p id="mvp-label" class="leader-title">Hediye MVP: —</p>
+    </aside>
+    <section class="arena" aria-label="Boss savaş alanı">
+      <div class="arena-glow" aria-hidden="true"></div>
+      <div id="characters" class="characters" aria-live="polite"></div>
+      <article id="boss-stage" class="boss-stage">
+        <div id="boss-sprite" class="boss-sprite" aria-hidden="true">🐉</div>
+        <p class="boss-label">Kraliyet Arenası</p>
+        <h1 class="boss-name">GÖLGE EJDERHASI</h1>
+        <div class="bar-block">
+          <div class="bar-caption"><span>Boss Canı</span><strong id="boss-health-value">— / —</strong></div>
+          <div class="arena-track" role="progressbar" aria-label="Boss canı" aria-valuemin="0" aria-valuemax="100"><div id="boss-health-fill" class="arena-fill"></div></div>
+        </div>
+        <div class="bar-block">
+          <div class="bar-caption"><span>Ortak Mana / Enerji</span><strong id="mana-value">0 / 100</strong></div>
+          <div class="arena-track" role="progressbar" aria-label="Ortak mana" aria-valuemin="0" aria-valuemax="100"><div id="mana-fill" class="arena-fill"></div></div>
+        </div>
+      </article>
+    </section>
+    <div id="mana-blast-label" class="mana-blast-label">✦ KRALİYET ALANI SALDIRISI ✦</div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="connection-status" class="connection-status" role="status" aria-live="polite">
+    <span class="status-dot" aria-hidden="true"></span>
+    <span id="connection-text">Token kontrol ediliyor…</span>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+    const canvas=document.querySelector('#army-canvas'), status=document.querySelector('#army-status');
+    const scene=new THREE.Scene(); scene.background=null;
+    const camera=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,.1,140); camera.position.set(0,23,39); camera.lookAt(0,0,-.7);
+    const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight); renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+    scene.add(new THREE.HemisphereLight(0xffdfba,0x49342c,1.65));
+    const sun=new THREE.DirectionalLight(0xffc58c,2.6); sun.position.set(-7,14,8); sun.castShadow=true; scene.add(sun);
+    const fill=new THREE.DirectionalLight(0x9bb9e8,.72);fill.position.set(8,7,-10);scene.add(fill);
+    const groundCanvas=document.createElement('canvas');groundCanvas.width=groundCanvas.height=512;const gctx=groundCanvas.getContext('2d');gctx.fillStyle='#62503a';gctx.fillRect(0,0,512,512);for(let i=0;i<2800;i++){const v=48+Math.random()*75;gctx.fillStyle=`rgba(${v+33},${v+14},${v-9},${.06+Math.random()*.19})`;gctx.beginPath();gctx.arc(Math.random()*512,Math.random()*512,Math.random()*5+.5,0,Math.PI*2);gctx.fill();}for(let i=0;i<125;i++){const x=Math.random()*512,y=Math.random()*512,r=3+Math.random()*15;gctx.fillStyle=`rgba(${70+Math.random()*45},${77+Math.random()*38},${42+Math.random()*20},${.08+Math.random()*.16})`;gctx.beginPath();gctx.ellipse(x,y,r,r*.35,Math.random()*Math.PI,0,Math.PI*2);gctx.fill();}for(let i=0;i<65;i++){const x=Math.random()*512,y=Math.random()*512,s=2+Math.random()*7;gctx.fillStyle=`rgba(155,143,119,${.12+Math.random()*.22})`;gctx.beginPath();gctx.moveTo(x-s,y);gctx.lineTo(x-s*.35,y-s*.45);gctx.lineTo(x+s,y-s*.2);gctx.lineTo(x+s*.45,y+s*.4);gctx.closePath();gctx.fill();}for(let i=0;i<38;i++){let x=Math.random()*512,y=Math.random()*512;gctx.strokeStyle='rgba(35,25,18,.24)';gctx.lineWidth=1+Math.random()*2;gctx.beginPath();gctx.moveTo(x,y);for(let j=0;j<4;j++){x+=(Math.random()-.5)*28;y+=Math.random()*20;gctx.lineTo(x,y);}gctx.stroke();}const groundTexture=new THREE.CanvasTexture(groundCanvas);groundTexture.wrapS=groundTexture.wrapT=THREE.RepeatWrapping;groundTexture.repeat.set(2,1);groundTexture.colorSpace=THREE.SRGBColorSpace;
+    const floor=new THREE.Mesh(new THREE.PlaneGeometry(34,20),new THREE.MeshStandardMaterial({map:groundTexture,color:0xc6a67b,roughness:1})); floor.rotation.x=-Math.PI/2; floor.position.y=-.3; floor.receiveShadow=true; scene.add(floor);
+    function base(x,width,color){const m=new THREE.Mesh(new THREE.BoxGeometry(width,.18,17),new THREE.MeshStandardMaterial({color,roughness:.95}));m.position.set(x,-.18,0);m.receiveShadow=true;scene.add(m);}
+    base(-8,15,0x644332); base(8,15,0x564733);
+    const arenaStone=new THREE.MeshStandardMaterial({color:0x766d5f,roughness:.98}),arenaShadow=new THREE.MeshStandardMaterial({color:0x554c42,roughness:1}),torchMetal=new THREE.MeshStandardMaterial({color:0x42352b,roughness:.86});
+    // Alçak, parçalı tribünler çerçevenin arka ve yan sınırlarında kalır; orta koridora taşmaz.
+    function arenaTier(x,z,w,d,h,rot=0){const block=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),Math.random()>.22?arenaStone:arenaShadow);block.position.set(x,-.3+h/2,z);block.rotation.y=rot;block.castShadow=true;block.receiveShadow=true;scene.add(block);const lip=new THREE.Mesh(new THREE.BoxGeometry(w+.12,.14,d+.12),arenaStone);lip.position.set(x,-.3+h+.04,z);lip.rotation.y=rot;lip.castShadow=true;scene.add(lip);}
+    for(let row=0;row<3;row++){const z=-9.5-row*.8,h=.65+row*.12;for(let i=0;i<12;i++)arenaTier(-16+i*2.9,z,2.72,.78,h);}for(let side of [-1,1])for(let row=0;row<2;row++)for(let i=0;i<7;i++)arenaTier(side*(16.1+row*.78),-7.4+i*2.25, .8,2.1,.62+row*.12,side*Math.PI/2);
+    function torch(x,z){const pole=new THREE.Mesh(new THREE.CylinderGeometry(.09,.14,2.3,5),torchMetal);pole.position.set(x,.85,z);pole.castShadow=true;scene.add(pole);const cup=new THREE.Mesh(new THREE.ConeGeometry(.28,.55,5),torchMetal);cup.position.set(x,2.25,z);scene.add(cup);const flame=new THREE.Mesh(new THREE.IcosahedronGeometry(.25,0),new THREE.MeshBasicMaterial({color:0xffa33b}));flame.position.set(x,2.72,z);scene.add(flame);const light=new THREE.PointLight(0xffa347,1.5,7);light.position.set(x,2.7,z);scene.add(light);}
+    torch(-14.8,-7.8);torch(14.8,-7.8);torch(-15.3,5.8);torch(15.3,5.8);
+    const seam=new THREE.Mesh(new THREE.BoxGeometry(.12,.03,17),new THREE.MeshBasicMaterial({color:0xb09a73}));seam.position.y=-.06;scene.add(seam);
+    const wood=new THREE.MeshStandardMaterial({color:0x493528,roughness:1}), deadwood=new THREE.MeshStandardMaterial({color:0x594432,roughness:1}), stone=new THREE.MeshStandardMaterial({color:0x777064,roughness:1}), moss=new THREE.MeshStandardMaterial({color:0x4f5741,roughness:1});
+    function stumpTree(x,z,s=1,lean=0){const group=new THREE.Group();group.position.set(x,-.12,z);group.rotation.z=lean;const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.22*s,.38*s,2.6*s,5),wood);trunk.position.y=1.3*s;trunk.castShadow=true;group.add(trunk);for(let i=0;i<3;i++){const branch=new THREE.Mesh(new THREE.CylinderGeometry(.08*s,.17*s,1.45*s,4),deadwood);branch.position.set((i%2?1:-1)*.48*s,(1.55+i*.28)*s,0);branch.rotation.z=(i%2?-.8:.8);group.add(branch);const tip=new THREE.Mesh(new THREE.ConeGeometry(.1*s,.55*s,4),wood);tip.position.copy(branch.position);tip.position.x+=(i%2?1:-1)*.55*s;tip.position.y+=.8*s;tip.rotation.z=branch.rotation.z;group.add(tip);}scene.add(group);}
+    function ruinColumn(x,z,s=1){const group=new THREE.Group();group.position.set(x,-.12,z);const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.36*s,.48*s,2.5*s,6),stone);shaft.position.y=1.25*s;shaft.rotation.z=(Math.random()-.5)*.16;shaft.castShadow=true;group.add(shaft);const cap=new THREE.Mesh(new THREE.BoxGeometry(1*s,.32*s,1*s),stone);cap.position.y=2.55*s;cap.rotation.y=.2;group.add(cap);const rubble=new THREE.Mesh(new THREE.DodecahedronGeometry(.48*s,0),moss);rubble.scale.set(1,.35,.8);rubble.position.set(.6*s,.15,.3*s);group.add(rubble);scene.add(group);}
+    function brokenWall(x,z,rot=0){const group=new THREE.Group();group.position.set(x,-.1,z);group.rotation.y=rot;for(let i=0;i<4;i++){const h=(i===1?1.35:.72)+Math.random()*.35;const block=new THREE.Mesh(new THREE.BoxGeometry(.9,h,.38),stone);block.position.set((i-1.5)*.82,h/2,0);block.rotation.y=(Math.random()-.5)*.12;block.castShadow=true;group.add(block);}scene.add(group);}
+    function oldWeapon(x,z,kind='sword',rot=0){const group=new THREE.Group();group.position.set(x,-.12,z);group.rotation.z=rot;const shaft=new THREE.Mesh(new THREE.CylinderGeometry(.045,.055,kind==='spear'?2.15:1.05,5),wood);shaft.position.y=kind==='spear'?1.05:.55;group.add(shaft);if(kind==='spear'){const point=new THREE.Mesh(new THREE.ConeGeometry(.13,.42,5),stone);point.position.y=2.32;group.add(point);}else{const blade=new THREE.Mesh(new THREE.BoxGeometry(.13,.85,.045),stone);blade.position.y=1.48;group.add(blade);const guard=new THREE.Mesh(new THREE.BoxGeometry(.42,.08,.1),wood);guard.position.y=1.02;group.add(guard);}scene.add(group);}
+    // Süsler yalnızca kenar şeridinde kalır; orta çarpışma koridoru açık tutulur.
+    stumpTree(-15.2,-8.4,1.12,-.08);stumpTree(14.7,8.3,.92,.11);stumpTree(-11.5,8.6,.75,.18);stumpTree(11.2,-8.5,.82,-.14);
+    ruinColumn(-15.4,1.3,.9);ruinColumn(15.1,-1.8,1.05);ruinColumn(-10.2,-8.5,.72);ruinColumn(10.4,8.5,.78);
+    brokenWall(-13.1,-8.1,.1);brokenWall(13.2,8.1,-.12);brokenWall(-15.1,7.5,.18);brokenWall(15.1,-7.3,-.18);
+    oldWeapon(-8.9,-8.35,'sword',.12);oldWeapon(8.9,8.35,'sword',-.14);oldWeapon(-14.3,-5.7,'spear',.08);oldWeapon(14.2,5.6,'spear',-.1);
+    const units=new Map(); let currentState=null, signature='', lastBombEffect='', lastWinnerKey=''; let winnerTimer; const leaderboardRanks=new Map();
+    const material=(color)=>new THREE.MeshStandardMaterial({color,roughness:.68});
+    function labelSprite(unit,color){const c=document.createElement('canvas');c.width=512;c.height=128;const x=c.getContext('2d');x.fillStyle='#07101ddd';x.beginPath();x.roundRect(8,14,496,102,28);x.fill();x.strokeStyle=color;x.lineWidth=6;x.stroke();x.fillStyle='#fff';x.font='bold 38px system-ui';x.textAlign='center';x.fillText(`${unit.displayName||unit.username}  ·  SEV ${unit.level}`,256,78);const t=new THREE.CanvasTexture(c);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthTest:false}));s.scale.set(3.5,.88,1);s.position.y=2.55;return s;}
+    function makeUnit(u){const g=new THREE.Group(), red=u.team==='red', tint=red?0xd7474e:0x4387e7, metal=material(tint), dark=material(red?0x671e28:0x193d72), skin=material(0xf0c5a1);let scale=1+Math.min(u.level,8)*.09;
+      const torso=new THREE.Mesh(new THREE.CylinderGeometry(.25*scale,.34*scale,.8*scale,6),metal);torso.position.y=.95*scale;torso.castShadow=true;g.add(torso);
+      const head=new THREE.Mesh(new THREE.IcosahedronGeometry(.24*scale,0),skin);head.position.y=1.52*scale;head.castShadow=true;g.add(head);
+      const legs=new THREE.Mesh(new THREE.BoxGeometry(.45*scale,.35*scale,.28*scale),dark);legs.position.y=.38*scale;g.add(legs);
+      if(u.level<=4){const weapon=new THREE.Mesh(u.level===1?new THREE.IcosahedronGeometry(.13):new THREE.CylinderGeometry(u.level===3?.035:.045,u.level===3?.035:.045,1.05,6),material(u.level<3?0x87654a:0xe7d9a5));weapon.rotation.z=-.48;weapon.position.set(.43*scale,1.02*scale,.05);g.add(weapon);if(u.level===4){const shield=new THREE.Mesh(new THREE.CylinderGeometry(.32,.32,.1,6),dark);shield.rotation.x=Math.PI/2;shield.position.set(-.38,.9,.12);g.add(shield);}}
+      if(u.level===5){const gun=new THREE.Mesh(new THREE.BoxGeometry(.75,.12,.14),material(0x252a31));gun.position.set(.45,1.1,.12);g.add(gun);}
+      if(u.level===6){const hull=new THREE.Mesh(new THREE.BoxGeometry(1.5,.62,.85),material(red?0x9d3439:0x346bb2));hull.position.y=.48;g.add(hull);const turret=new THREE.Mesh(new THREE.CylinderGeometry(.36,.42,.28,8),metal);turret.position.y=.9;g.add(turret);const barrel=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.9,8),material(0x22262b));barrel.rotation.z=Math.PI/2;barrel.position.set(.58,1,.12);g.add(barrel);}
+      if(u.level===7){const plane=new THREE.Mesh(new THREE.ConeGeometry(.42,1.8,5),material(0xd8e1ed));plane.rotation.z=-Math.PI/2;plane.position.y=2.35;g.add(plane);const wings=new THREE.Mesh(new THREE.BoxGeometry(.52,.08,1.5),metal);wings.position.y=2.34;g.add(wings);}
+      if(u.level===8){const orb=new THREE.Mesh(new THREE.SphereGeometry(.42,12,8),material(0xffd24a));orb.position.y=2.1;g.add(orb);const glow=new THREE.PointLight(0xff6435,7,4);glow.position.y=2;g.add(glow);}
+      g.add(labelSprite(u,red?'#ff626c':'#61a4ff'));scene.add(g);return g;}
+    function renderArmy(state){currentState=state;const army=state.army;if(!army)return;renderLeaderboard(army.leaderboard);const signatureNow=army.units.map(u=>`${u.userId}:${u.team}:${u.level}`).join('|');if(signatureNow!==signature){for(const g of units.values())scene.remove(g);units.clear();army.units.forEach(u=>units.set(u.userId,makeUnit(u)));signature=signatureNow;}
+      const battle=army.mode==='battle';army.units.forEach((u,index)=>{const g=units.get(u.userId);if(!g)return;const side=u.team==='red'?-1:1, perTeam=army.units.filter(v=>v.team===u.team).length;const rank=army.units.filter(v=>v.team===u.team).findIndex(v=>v.userId===u.userId);const col=rank%7,row=Math.floor(rank/7);const targetX=side*(battle?Math.max(.7,4.7-row*.35):7.2-row*.35);g.position.x=THREE.MathUtils.lerp(g.position.x,targetX,.12);g.position.z=(col-3)*1.55;g.rotation.y=u.team==='red'?Math.PI/2:-Math.PI/2;g.scale.setScalar(u.level===7?1.1:1);});
+      const red=army.teams.red,blue=army.teams.blue;document.querySelector('#army-red').textContent=`KIRMIZI TAKIM: ${red.members} Kişi | ${red.power} Güç`;document.querySelector('#army-blue').textContent=`MAVİ TAKIM: ${blue.members} Kişi | ${blue.power} Güç`;const total=Math.max(1,red.power+blue.power);document.querySelector('#army-red-power').style.width=`${100*red.power/total}%`;document.querySelector('#army-phase').textContent=`${battle?'SAVAŞ':'HAZIRLIK'} · TUR ${army.round}`;const winnerKey=army.winner?`${army.round}-${army.winner}`:'';if(army.winner&&winnerKey!==lastWinnerKey){lastWinnerKey=winnerKey;const w=document.querySelector('#army-winner');w.textContent=`${army.winner==='red'?'🔴 KIRMIZI TAKIM':'🔵 MAVİ TAKIM'} KAZANDI`;w.style.color=army.winner==='red'?'#ff7078':'#75b6ff';w.classList.add('show');clearTimeout(winnerTimer);winnerTimer=setTimeout(()=>w.classList.remove('show'),6000);}}
+    function renderLeaderboard(entries){const list=document.querySelector('#army-leader-list');list.replaceChildren();const currentRanks=new Map();(entries||[]).forEach((entry,index)=>{const rank=index+1;currentRanks.set(entry.userId,rank);const row=document.createElement('li');row.className='army-leader-row';if(leaderboardRanks.get(entry.userId)!==rank)row.classList.add('changed');const place=document.createElement('span');place.className='army-leader-rank';place.textContent=String(rank).padStart(2,'0');const name=document.createElement('span');name.className='army-leader-name';name.textContent=entry.username;const level=document.createElement('span');level.title=`En yüksek seviye ${entry.highestLevel}`;level.textContent=['','🪨','🪵','🔱','🛡️','🔫','🚜','✈️','☢️'][entry.highestLevel]||'🪨';const coins=document.createElement('span');coins.className='army-leader-coins';coins.textContent=`${Number(entry.coins||0).toLocaleString('tr-TR')} 🪙`;row.append(place,name,level,coins);list.append(row);});leaderboardRanks.clear();for(const [id,rank] of currentRanks)leaderboardRanks.set(id,rank);}
+    let shakeUntil=0;function animate(t){requestAnimationFrame(animate);if(currentState?.army){const a=currentState.army;const sec=Math.ceil(Math.max(0,a.remainingMs-(Date.now()-Date.parse(a.updatedAt)))/1000);document.querySelector('#army-clock').textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}if(t<shakeUntil){camera.position.x=(Math.random()-.5)*.38;camera.position.z=39+(Math.random()-.5)*.25;}else camera.position.x=0;camera.lookAt(0,0,-.7);renderer.render(scene,camera);}requestAnimationFrame(animate);
+    addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+    const token=new URLSearchParams(location.search).get('token');if(!token){status.textContent='Overlay token eksik.';}else if(typeof io!=='function'){status.textContent='Socket.IO yüklenemedi.';}else{const socket=io({query:{token},reconnection:false});socket.on('connect',()=>status.textContent='Ordu sunucusuna bağlı');socket.on('connect_error',()=>status.textContent='Token veya abonelik doğrulanamadı');socket.on('disconnect',r=>status.textContent=`Bağlantı kesildi: ${r}`);socket.on('game:state',state=>{renderArmy(state);const bomb=(state.army?.effects||[]).find(effect=>effect.includes('atom bombası saldırısı'));if(bomb&&bomb!==lastBombEffect){lastBombEffect=bomb;shakeUntil=performance.now()+1100;const flash=document.createElement('div');flash.style='position:absolute;inset:0;z-index:4;background:radial-gradient(circle,#fff9,#ff352988 40%,transparent 72%);pointer-events:none';document.querySelector('#army-overlay').append(flash);setTimeout(()=>flash.remove(),450);}});}
+  </script>
+  <script>
+    (() => {
+      const connectionStatus = document.querySelector('#connection-status');
+      const connectionText = document.querySelector('#connection-text');
+      const bossStage = document.querySelector('#boss-stage');
+      const bossSprite = document.querySelector('#boss-sprite');
+      const bossHealthFill = document.querySelector('#boss-health-fill');
+      const bossHealthValue = document.querySelector('#boss-health-value');
+      const manaFill = document.querySelector('#mana-fill');
+      const manaValue = document.querySelector('#mana-value');
+      const characters = document.querySelector('#characters');
+      const damageLeaders = document.querySelector('#damage-leaders');
+      const supportLeaders = document.querySelector('#support-leaders');
+      const mvpLabel = document.querySelector('#mvp-label');
+      const toast = document.querySelector('#toast');
+      const manaBlastLabel = document.querySelector('#mana-blast-label');
+      const token = new URLSearchParams(window.location.search).get('token')?.trim();
+      let previousBossHealth = null;
+      let toastTimeout;
+
+      function setConnectionState(kind, message) {
+        connectionStatus.className = `connection-status ${kind}`.trim();
+        connectionText.textContent = message;
+      }
+
+      function formatNumber(value) {
+        return Number(value || 0).toLocaleString('tr-TR');
+      }
+
+      function renderLeaders(list, players, key, suffix, mvpId) {
+        const sorted = [...players].sort((a, b) => Number(b[key] || 0) - Number(a[key] || 0)).filter((player) => Number(player[key] || 0) > 0).slice(0, 5);
+        list.replaceChildren();
+        if (!sorted.length) { const empty = document.createElement('li'); empty.textContent = 'Henüz yok'; list.append(empty); return; }
+        sorted.forEach((player, index) => {
+          const row = document.createElement('li');
+          const name = document.createElement('span');
+          name.textContent = `${index === 0 && player.userId === mvpId ? '👑 ' : ''}${player.displayName || player.username}`;
+          name.title = `${player.avatar || '🧝'} ${player.className || 'Gezgin'}`;
+          const value = document.createElement('span');
+          value.className = 'leader-value';
+          value.textContent = `${formatNumber(player[key])} ${suffix}`;
+          row.append(name, value);
+          list.append(row);
+        });
+      }
+
+      function renderCharacters(players) {
+        characters.replaceChildren();
+        const visiblePlayers = [...players].sort((a, b) => Number(b.damageDealt) - Number(a.damageDealt)).slice(0, 12);
+        const count = Math.max(visiblePlayers.length, 1);
+        visiblePlayers.forEach((player, index) => {
+          const angle = (Math.PI * 2 * index / count) - Math.PI / 2;
+          const x = 50 + Math.cos(angle) * 43;
+          const y = 50 + Math.sin(angle) * 43;
+          const character = document.createElement('div');
+          character.className = `character${player.isTargeted ? ' targeted' : ''}`;
+          character.style.left = `${x}%`;
+          character.style.top = `${y}%`;
+          const avatar = document.createElement('span');
+          avatar.className = 'avatar-orb';
+          avatar.textContent = player.avatar || '🧝';
+          const name = document.createElement('span');
+          name.className = 'character-name';
+          name.textContent = player.displayName || player.username;
+          const role = document.createElement('span');
+          role.className = 'character-role';
+          const buffActive = player.buffExpiresAt && Date.parse(player.buffExpiresAt) > Date.now();
+          role.textContent = player.isTargeted ? 'HEDEF · !kac' : `${player.className || 'Gezgin'}${buffActive ? ' · ⚡ hız' : ''}`;
+          const health = document.createElement('span');
+          health.className = 'character-health';
+          const healthFill = document.createElement('span');
+          healthFill.style.width = `${Math.max(0, Math.min(100, (Number(player.health) / Math.max(1, Number(player.maxHealth))) * 100))}%`;
+          health.append(healthFill);
+          character.append(avatar, name, role, health);
+          characters.append(character);
+        });
+      }
+
+      function showEffects(effects) {
+        for (const effect of effects) {
+          toast.textContent = effect.message || 'Arenada yeni bir hareket!';
+          toast.className = `toast show ${effect.type || ''}`;
+          clearTimeout(toastTimeout);
+          toastTimeout = setTimeout(() => toast.classList.remove('show'), 3100);
+          if (['chat-attack', 'mana-blast', 'meteor', 'boss-hit'].includes(effect.type)) {
+            bossSprite.classList.remove('hit', 'meteor-hit');
+            void bossSprite.offsetWidth;
+            bossSprite.classList.add(effect.type === 'meteor' ? 'meteor-hit' : 'hit');
+          }
+          if (effect.type === 'mana-blast') {
+            manaBlastLabel.classList.remove('show');
+            void manaBlastLabel.offsetWidth;
+            manaBlastLabel.classList.add('show');
+          }
+        }
+      }
+
+      function renderGameState(state) {
+        if (!state || !Number.isFinite(Number(state.bossHealth)) || !Number.isFinite(Number(state.maxBossHealth))) return;
+        const health = Math.max(0, Number(state.bossHealth));
+        const maximum = Math.max(1, Number(state.maxBossHealth));
+        const percentage = Math.max(0, Math.min(100, (health / maximum) * 100));
+        bossHealthFill.style.width = `${percentage}%`;
+        bossHealthValue.textContent = `${formatNumber(health)} / ${formatNumber(maximum)}`;
+        bossHealthFill.parentElement.setAttribute('aria-valuemax', formatNumber(maximum));
+        bossHealthFill.parentElement.setAttribute('aria-valuenow', formatNumber(health));
+        const mana = Math.max(0, Number(state.mana || 0));
+        const maxMana = Math.max(1, Number(state.maxMana || 100));
+        manaFill.style.width = `${Math.min(100, (mana / maxMana) * 100)}%`;
+        manaValue.textContent = `${formatNumber(mana)} / ${formatNumber(maxMana)}`;
+        if (previousBossHealth !== null && health < previousBossHealth) {
+          bossSprite.classList.remove('hit');
+          void bossSprite.offsetWidth;
+          bossSprite.classList.add('hit');
+        }
+        previousBossHealth = health;
+        const players = Array.isArray(state.players) ? state.players : [];
+        renderCharacters(players);
+        renderLeaders(damageLeaders, players, 'damageDealt', 'hasar', state.mvpUserId);
+        renderLeaders(supportLeaders, players, 'supportPoints', 'destek', state.mvpUserId);
+        const mvp = players.find((player) => player.userId === state.mvpUserId);
+        mvpLabel.textContent = `Hediye MVP: ${mvp ? `👑 ${mvp.displayName || mvp.username}` : '—'}`;
+        const guilds = Array.isArray(state.guilds) ? state.guilds : [];
+        const royal = guilds.find((guild) => guild.id === 'kraliyet') || { score: 0, members: 0 };
+        const shadow = guilds.find((guild) => guild.id === 'golge') || { score: 0, members: 0 };
+        document.querySelector('#royal-score').textContent = `Kraliyet ${formatNumber(royal.score)}`;
+        document.querySelector('#shadow-score').textContent = `Gölge ${formatNumber(shadow.score)}`;
+        document.querySelector('#guild-members').textContent = `${royal.members} / ${shadow.members}`;
+        const totalGuildScore = Number(royal.score) + Number(shadow.score);
+        document.querySelector('#guild-fill').style.width = `${totalGuildScore ? (Number(royal.score) / totalGuildScore) * 100 : 50}%`;
+        if (Array.isArray(state.effects) && state.effects.length) showEffects(state.effects);
+        bossStage.classList.toggle('defeated', Boolean(state.bossDefeated));
+      }
+
+      if (!token) {
+        setConnectionState('error', 'Overlay token eksik. URL’ye ?token=… ekleyin.');
+        return;
+      }
+      if (typeof io !== 'function') {
+        setConnectionState('error', 'Socket.IO istemcisi yüklenemedi.');
+        return;
+      }
+
+      setConnectionState('', 'Yayıncı odasına bağlanıyor…');
+      const socket = io({ query: { token }, reconnection: false });
+      socket.on('connect', () => setConnectionState('online', 'Oyun sunucusuna bağlı'));
+      socket.on('connect_error', () => setConnectionState('error', 'Bağlantı reddedildi. Token veya aboneliği kontrol edin.'));
+      socket.on('disconnect', (reason) => setConnectionState('error', `Bağlantı kesildi: ${reason}`));
+      socket.on('game:state', renderGameState);
+    })();
+  </script>
+</body>
+</html>

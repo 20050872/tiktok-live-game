@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TikTokLiveGame | Test Paneli</title>
+  <link rel="stylesheet" href="/legal/consent.css">
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #10131a; color: #edf1f7; }
+    * { box-sizing: border-box; }
+    body { max-width: 980px; margin: 32px auto; padding: 0 18px; }
+    main { display: grid; gap: 16px; }
+    .card { background: #1a202b; border: 1px solid #303a4a; border-radius: 16px; padding: 22px; }
+    h1, h2 { margin: 0 0 14px; }
+    h1 { font-size: 24px; }
+    h2 { font-size: 17px; }
+    p { color: #aeb9d3; }
+    .status { min-height: 22px; color: #aeb9d3; font-weight: 650; }
+    .online { color: #72e0a1; }
+    .offline, .error { color: #ff8585; }
+    .success { color: #72e0a1; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
+    .field { display: grid; flex: 1 1 220px; gap: 6px; min-width: 0; }
+    label { color: #bac4d7; font-size: 12px; font-weight: 700; }
+    input { width: 100%; min-width: 0; padding: 11px; border: 1px solid #46536a; border-radius: 8px; background: #10131a; color: inherit; }
+    button { padding: 10px 15px; border: 0; border-radius: 8px; background: #8b6cff; color: white; font-weight: 750; cursor: pointer; }
+    button.secondary { background: #30394b; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .link-row { display: flex; gap: 9px; }
+    .link-row input { flex: 1; }
+    .sim-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .army-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    .sim-button { width: 100%; background: #2a3447; text-align: left; }
+    .sim-button strong { display: block; margin-bottom: 3px; color: #d2c8ff; }
+    .sim-button span { color: #b9c4d7; font-size: 12px; font-weight: 500; }
+    #events { display: grid; gap: 7px; max-height: 220px; overflow: auto; margin: 10px 0 0; padding-left: 22px; }
+    #events li { color: #c6cfdf; overflow-wrap: anywhere; }
+    code { color: #c8b8ff; }
+    @media (max-width: 680px) { .sim-grid { grid-template-columns: 1fr; } .link-row { flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="card">
+      <h1>TikTokLiveGame test paneli</h1>
+      <p>Geliştirme için overlay bağlantısını ve yayıncıya özel event akışını kontrol edin.</p>
+      <div class="row">
+        <div class="field">
+          <label for="token">Yayıncı overlay token</label>
+          <input id="token" type="password" autocomplete="off" placeholder="Kayıt yanıtındaki overlayToken" aria-label="Overlay token">
+        </div>
+        <div style="align-self:end"><button id="connect" type="button">Socket.IO’ya bağlan</button></div>
+      </div>
+      <p id="status" class="status">Token girip bağlanın.</p>
+    </section>
+
+    <section class="card">
+      <h2>Kırmızı vs Mavi Ordu simülasyonu</h2>
+      <p>Jeton değerleriyle seviye 1–8 birimlerini ve toplu orduyu deneyin.</p>
+      <div class="row"><div class="field"><label for="bot-count">Eklenecek bot</label><input id="bot-count" type="number" min="1" max="200" value="30"></div><button id="add-bots" type="button" class="secondary">Bot ordusu ekle</button></div>
+      <div class="army-grid" id="army-levels"></div><p id="army-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>OBS / TikTok LIVE Studio overlay linki</h2>
+      <div class="link-row">
+        <input id="overlay-link" type="text" readonly aria-label="Overlay URL">
+        <button id="copy-link" type="button" class="secondary">Linki kopyala</button>
+      </div>
+      <p>Browser Source olarak <code>/overlay.html?token=…</code> adresini kullanın. Token bağlantı linkinin içinde yer alır.</p>
+    </section>
+
+    <section class="card">
+      <h2>Simüle TikTok event gönder</h2>
+      <div class="row">
+        <div class="field"><label for="viewer-name">Test izleyici adı</label><input id="viewer-name" value="viewer_test" maxlength="64"></div>
+        <div class="field"><label for="chat-message">Chat yorumu</label><input id="chat-message" value="Boss'a saldır!" maxlength="500"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label for="gift-name">Hediye adı</label><input id="gift-name" value="Rose" maxlength="100"></div>
+        <div class="field"><label for="gift-count">Hediye tekrar sayısı</label><input id="gift-count" type="number" min="1" max="1000" value="1"></div>
+        <div class="field"><label for="like-count">Like sayısı</label><input id="like-count" type="number" min="1" max="100000" value="10"></div>
+      </div>
+      <div class="sim-grid">
+        <button class="sim-button" type="button" data-event="CHAT"><strong>CHAT gönder</strong><span>Yorum event’iyle boss’a saldır</span></button>
+        <button class="sim-button" type="button" data-event="GIFT"><strong>GIFT gönder</strong><span>Hediye ve tekrar sayısını simüle et</span></button>
+        <button class="sim-button" type="button" data-event="LIKE"><strong>LIKE gönder</strong><span>Beğeni sayısını simüle et</span></button>
+      </div>
+      <p id="simulation-status" class="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Socket.IO test mesajı</h2>
+      <form id="message-form" class="row">
+        <div class="field"><label for="message">Test mesajı</label><input id="message" maxlength="200" value="Merhaba, Socket.IO!"></div>
+        <div style="align-self:end"><button id="send" type="submit" disabled>Mesajı yayınla</button></div>
+      </form>
+      <h2>Gelen olaylar</h2>
+      <ul id="events" aria-live="polite"></ul>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/legal/legal-ui.js" defer></script>
+  <script>
+    const statusElement = document.querySelector('#status');
+    const simulationStatus = document.querySelector('#simulation-status');
+    const sendButton = document.querySelector('#send');
+    const connectButton = document.querySelector('#connect');
+    const tokenInput = document.querySelector('#token');
+    const overlayLink = document.querySelector('#overlay-link');
+    const events = document.querySelector('#events');
+    const armyStatus = document.querySelector('#army-status');
+    let socket;
+
+    const tokenFromQuery = new URLSearchParams(window.location.search).get('token');
+    if (tokenFromQuery) tokenInput.value = tokenFromQuery;
+
+    function addEvent(text) {
+      const item = document.createElement('li');
+      item.textContent = text;
+      events.prepend(item);
+    }
+
+    function updateOverlayLink() {
+      const token = tokenInput.value.trim();
+      overlayLink.value = token ? `${window.location.origin}/overlay.html?token=${encodeURIComponent(token)}` : '';
+    }
+
+    tokenInput.addEventListener('input', updateOverlayLink);
+    updateOverlayLink();
+
+    document.querySelector('#copy-link').addEventListener('click', async () => {
+      updateOverlayLink();
+      if (!overlayLink.value) {
+        statusElement.textContent = 'Önce overlay token girin.';
+        statusElement.className = 'status error';
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(overlayLink.value);
+        statusElement.textContent = 'Overlay linki panoya kopyalandı.';
+        statusElement.className = 'status success';
+      } catch {
+        overlayLink.focus();
+        overlayLink.select();
+        statusElement.textContent = 'Link seçildi; kopyalamak için Ctrl+C kullanın.';
+        statusElement.className = 'status';
+      }
+    });
+
+    connectButton.addEventListener('click', () => {
+      if (socket) socket.disconnect();
+      const token = tokenInput.value.trim();
+      if (!token) {
+        statusElement.textContent = 'Overlay token gerekli.';
+        statusElement.className = 'status error';
+        return;
+      }
+
+      updateOverlayLink();
+      statusElement.textContent = 'Bağlanıyor…';
+      statusElement.className = 'status';
+      socket = io({ query: { token }, reconnection: false });
+      socket.on('connect', () => {
+        statusElement.textContent = `Yayıncı odasına bağlı (${socket.id})`;
+        statusElement.className = 'status online';
+        sendButton.disabled = false;
+        addEvent('Socket.IO yayıncı odasına bağlandı.');
+      });
+      socket.on('connect_error', () => {
+        statusElement.textContent = 'Bağlantı reddedildi. Token veya abonelik durumunu kontrol edin.';
+        statusElement.className = 'status error';
+        sendButton.disabled = true;
+        addEvent('Sunucu Socket.IO bağlantısını doğrulayamadı.');
+      });
+      socket.on('disconnect', (reason) => {
+        statusElement.textContent = `Bağlantı kesildi (${reason})`;
+        statusElement.className = 'status offline';
+        sendButton.disabled = true;
+        addEvent(`Bağlantı kesildi: ${reason}`);
+      });
+      socket.on('test:message', (payload) => {
+        addEvent(`Test mesajı · ${payload.from}: ${payload.message}`);
+      });
+      socket.on('game:state', (state) => {
+        addEvent(state.army ? `Ordu durumu · Kırmızı ${state.army.teams.red.members} (${state.army.teams.red.power}) / Mavi ${state.army.teams.blue.members} (${state.army.teams.blue.power}) · ${state.army.mode}` : `GameState güncellendi · boss ${state.bossHealth}/${state.maxBossHealth} · ${state.players.length} oyuncu`);
+      });
+      socket.on('test:error', (payload) => addEvent(`Hata: ${payload.message}`));
+    });
+
+    document.querySelector('#message-form').addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (socket?.connected) socket.emit('test:send', document.querySelector('#message').value);
+    });
+
+    async function simulate(eventType) {
+      const token = tokenInput.value.trim();
+      const username = document.querySelector('#viewer-name').value.trim();
+      if (!token || !username) {
+        simulationStatus.textContent = 'Token ve test izleyici adı gerekli.';
+        simulationStatus.className = 'status error';
+        return;
+      }
+
+      let payload = {};
+      if (eventType === 'CHAT') payload = { message: document.querySelector('#chat-message').value };
+      if (eventType === 'GIFT') payload = {
+        giftName: document.querySelector('#gift-name').value,
+        repeatCount: Number(document.querySelector('#gift-count').value),
+        diamondCount: 1,
+      };
+      if (eventType === 'LIKE') payload = { count: Number(document.querySelector('#like-count').value) };
+
+      simulationStatus.textContent = `${eventType} gönderiliyor…`;
+      simulationStatus.className = 'status';
+      try {
+        const response = await fetch('/api/test/simulate-event', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            overlayToken: token,
+            eventType,
+            user: { userId: `sim-${username}`, username, displayName: username },
+            payload,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+        simulationStatus.textContent = `${eventType} gönderildi · boss canı ${result.gameState.bossHealth}/${result.gameState.maxBossHealth}`;
+        simulationStatus.className = 'status success';
+        addEvent(`${eventType} simülasyonu işlendi; GameState yayıncı odasına gönderildi.`);
+      } catch (error) {
+        simulationStatus.textContent = `Event gönderilemedi: ${error.message}`;
+        simulationStatus.className = 'status error';
+      }
+    }
+
+    document.querySelectorAll('[data-event]').forEach((button) => {
+      button.addEventListener('click', () => simulate(button.dataset.event));
+    });
+
+    const levels = [0, 1, 10, 50, 200, 1000, 5000, 15000];
+    document.querySelector('#army-levels').innerHTML = levels.map((coins, index) => `<button class="sim-button" type="button" data-level="${index + 1}" data-coins="${coins}"><strong>Seviye ${index + 1}</strong><span>${coins.toLocaleString('tr-TR')} jeton</span></button>`).join('');
+    async function armyRequest(eventType, payload) {
+      const token = tokenInput.value.trim();
+      const username = document.querySelector('#viewer-name').value.trim() || 'viewer_test';
+      if (!token) { armyStatus.textContent = 'Önce overlay token girin.'; armyStatus.className = 'status error'; return; }
+      armyStatus.textContent = 'Simülasyon gönderiliyor…'; armyStatus.className = 'status';
+      try {
+        const response = await fetch('/api/test/simulate-event', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({ overlayToken:token, eventType, user:{userId:`army-${username}`, username}, payload }) });
+        const result = await response.json(); if (!response.ok) throw new Error(result.message || `HTTP ${response.status}`);
+        const army = result.gameState.army;
+        armyStatus.textContent = `Tamamlandı · Kırmızı ${army.teams.red.members} / Mavi ${army.teams.blue.members} · ${army.mode}`;
+        armyStatus.className = 'status success';
+      } catch (error) { armyStatus.textContent = `İstek başarısız: ${error.message}`; armyStatus.className = 'status error'; }
+    }
+    document.querySelector('#army-levels').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-level]'); if (!button) return;
+      armyRequest('ARMY_GIFT', { coins:Number(button.dataset.coins) });
+    });
+    document.querySelector('#add-bots').addEventListener('click', () => armyRequest('BOT_ARMY', { count:Number(document.querySelector('#bot-count').value) }));
+  </script>
+</body>
+</html>
