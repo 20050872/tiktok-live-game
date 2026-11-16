@@ -37,6 +37,7 @@ export interface HttpServerDependencies extends SimulatedEventDependencies {
 export const REGISTERED_HTTP_ROUTES = [
   'GET  /health',
   'GET  /',
+  'POST /  (Shopier OSB res/hash callback)',
   'GET  /admin.html',
   'GET  /dashboard.html  (alias: /panel)',
   'GET  /overlay.html',
@@ -90,6 +91,11 @@ async function handleHttpRequest(
 ): Promise<void> {
   const requestedPathname = new URL(request.url ?? '/', 'http://localhost').pathname;
   const pathname = normalizeRequestPath(request.url);
+
+  if (request.method === 'POST' && pathname === '/') {
+    await shopierOsbCallback(request, response);
+    return;
+  }
 
   if (pathname === '/api/auth/register') {
     if (request.method !== 'POST') {
