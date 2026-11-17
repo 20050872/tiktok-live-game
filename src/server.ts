@@ -24,7 +24,8 @@ export function createBackendServer() {
   return { httpServer, io };
 }
 
-export function startBackendServer(port = Number(process.env.PORT ?? 3000)) {
+export function startBackendServer(port: string | number = process.env.PORT || 10000) {
+  const PORT = Number(port);
   const { httpServer, io } = createBackendServer();
 
   httpServer.on('error', (error: NodeJS.ErrnoException) => {
@@ -32,8 +33,8 @@ export function startBackendServer(port = Number(process.env.PORT ?? 3000)) {
     process.exitCode = 1;
   });
 
-  httpServer.listen(port, '0.0.0.0', () => {
-    console.log(`TikTokLiveGame backend çalışıyor: http://localhost:${port}`);
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`TikTokLiveGame backend çalışıyor: http://localhost:${PORT}`);
     logRegisteredHttpRoutes();
   });
 
