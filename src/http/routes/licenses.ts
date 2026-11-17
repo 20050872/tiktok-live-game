@@ -83,30 +83,37 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
   let body: unknown;
   try { body = await readShopierOsbBody(request); }
   catch { sendOsb(response, 400, 'missing parameter'); return; }
+  const directTestFlag = readOsbField(body, 'istest');
+  if (directTestFlag === 1 || directTestFlag === '1') { sendOsb(response, 200, 'success'); return; }
   const encodedRes = readOsbField(body, 'res');
   const receivedHash = clean(readOsbField(body, 'hash'), 256).toLowerCase();
-  const username = process.env.SHOPIER_OSB_USERNAME?.trim() ?? '';
-  const key = process.env.SHOPIER_OSB_PASSWORD?.trim() ?? '';
-  if (typeof encodedRes !== 'string' || !encodedRes || !receivedHash || !username || !key) { sendOsb(response, 400, 'missing parameter'); return; }
+  if (typeof encodedRes !== 'string' || !encodedRes) { sendOsb(response, 400, 'missing parameter'); return; }
 
-  const expectedHash = createHmac('sha256', key).update(`${encodedRes}${username}`).digest('hex');
-  const expectedBytes = Buffer.from(expectedHash, 'hex'); const receivedBytes = Buffer.from(receivedHash, 'hex');
-  if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) { sendOsb(response, 401, 'unauthorized'); return; }
-
+  // Shopier's test button may send a test payload with a hash that does not
+  // match the configured OSB credentials. Decode it first so tests can be
+  // acknowledged without creating a license or requiring HMAC credentials.
   let payload: unknown;
   try {
     const decoded = Buffer.from(encodedRes, 'base64');
     if (!decoded.length || decoded.toString('base64').replace(/=+$/, '') !== encodedRes.replace(/\s/g, '').replace(/=+$/, '')) throw new Error('bad base64');
     payload = JSON.parse(decoded.toString('utf8')) as unknown;
   } catch { sendOsb(response, 400, 'invalid res'); return; }
+  if (isRecord(payload) && (payload.istest === 1 || payload.istest === '1')) { sendOsb(response, 200, 'success'); return; }
+
+  const username = process.env.SHOPIER_OSB_USERNAME?.trim() ?? '';
+  const key = process.env.SHOPIER_OSB_PASSWORD?.trim() ?? '';
+  if (!receivedHash || !username || !key) { sendOsb(response, 400, 'missing parameter'); return; }
+
+  const expectedHash = createHmac('sha256', key).update(`${encodedRes}${username}`).digest('hex');
+  const expectedBytes = Buffer.from(expectedHash, 'hex'); const receivedBytes = Buffer.from(receivedHash, 'hex');
+  if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) { sendOsb(response, 401, 'unauthorized'); return; }
+
   if (!isRecord(payload)) { sendOsb(response, 400, 'invalid res'); return; }
 
   const orderId = clean(payload.orderid ?? payload.order_id ?? payload.platform_order_id, 160);
   let productListLog: string;
   try { productListLog = JSON.stringify(payload.productlist ?? null) ?? 'null'; } catch { productListLog = '[unserializable]'; }
   console.info('[Shopier OSB] Sipariş bildirimi', JSON.stringify({ orderid: orderId, email: clean(payload.email ?? payload.buyeremail, 254), productlist: productListLog.slice(0, 1200), istest: payload.istest ?? null }));
-  if (payload.istest === 1 || payload.istest === '1') { sendOsb(response, 200, 'success'); return; }
-
   const buyerEmail = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
   const customerName = [clean(payload.buyername ?? payload.customer_name, 100), clean(payload.buyersurname ?? payload.buyer_surname, 100)].filter(Boolean).join(' ').trim() || buyerEmail;
   const plan = findPlanInProductList(payload.productlist) ?? plans.find((candidate) => Math.abs(candidate.amount - Number(String(payload.price ?? '').replace(',', '.'))) < 0.005)?.type ?? null;
