@@ -37,7 +37,7 @@ export interface HttpServerDependencies extends SimulatedEventDependencies {
 export const REGISTERED_HTTP_ROUTES = [
   'GET  /health',
   'GET  /',
-  'POST /  (Shopier OSB res/hash callback)',
+  'POST /, /api/shopier/callback, /shopier, /callback  (Shopier OSB res/hash callback)',
   'GET  /admin.html',
   'GET  /dashboard.html  (alias: /panel)',
   'GET  /overlay.html',
@@ -98,7 +98,7 @@ async function handleHttpRequest(
     return;
   }
 
-  if (request.method === 'POST' && pathname === '/') {
+  if (request.method === 'POST' && ['/', '/api/shopier/callback', '/shopier', '/callback'].includes(pathname)) {
     await shopierOsbCallback(request, response);
     return;
   }
@@ -140,10 +140,6 @@ async function handleHttpRequest(
   if (pathname === '/api/licenses/validate' || pathname === '/api/verify-license') {
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
     await validateLicense(request, response); return;
-  }
-  if (pathname === '/api/shopier/callback') {
-    if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
-    await shopierOsbCallback(request, response); return;
   }
   if (pathname === '/api/webhooks/shopier') {
     if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
