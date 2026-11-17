@@ -102,6 +102,11 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
   if (!isRecord(payload)) { sendOsb(response, 400, 'invalid res'); return; }
 
   const orderId = clean(payload.orderid ?? payload.order_id ?? payload.platform_order_id, 160);
+  let productListLog: string;
+  try { productListLog = JSON.stringify(payload.productlist ?? null) ?? 'null'; } catch { productListLog = '[unserializable]'; }
+  console.info('[Shopier OSB] Sipariş bildirimi', JSON.stringify({ orderid: orderId, email: clean(payload.email ?? payload.buyeremail, 254), productlist: productListLog.slice(0, 1200), istest: payload.istest ?? null }));
+  if (payload.istest === 1 || payload.istest === '1') { sendOsb(response, 200, 'success'); return; }
+
   const buyerEmail = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
   const customerName = [clean(payload.buyername ?? payload.customer_name, 100), clean(payload.buyersurname ?? payload.buyer_surname, 100)].filter(Boolean).join(' ').trim() || buyerEmail;
   const plan = findPlanInProductList(payload.productlist) ?? plans.find((candidate) => Math.abs(candidate.amount - Number(String(payload.price ?? '').replace(',', '.'))) < 0.005)?.type ?? null;

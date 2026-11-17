@@ -92,6 +92,12 @@ async function handleHttpRequest(
   const requestedPathname = new URL(request.url ?? '/', 'http://localhost').pathname;
   const pathname = normalizeRequestPath(request.url);
 
+  if (request.method === 'HEAD' || request.method === 'OPTIONS') {
+    response.writeHead(200);
+    response.end();
+    return;
+  }
+
   if (request.method === 'POST' && pathname === '/') {
     await shopierOsbCallback(request, response);
     return;
