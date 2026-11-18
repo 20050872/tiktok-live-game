@@ -17,6 +17,7 @@ enum LicensePlanType {
   SEVEN_DAYS  @map("7_DAYS")
   ONE_MONTH   @map("30_DAYS")
   LIFETIME
+  TEST
 }
 
 model User {
@@ -46,7 +47,18 @@ model License {
   buyerEmail    String          @default("") @map("customerEmail")
   orderId       String          @unique
   planType      LicensePlanType
-  expiresAt     DateTime
+  startedAt     DateTime        @default(now())
+  expiresAt     DateTime?
   isActive      Boolean         @default(true)
   createdAt     DateTime        @default(now())
+  shopierOrders ShopierOrder[]
+}
+
+model ShopierOrder {
+  id        String          @id @default(uuid()) @db.Uuid
+  orderId   String          @unique
+  licenseId String          @db.Uuid
+  planType  LicensePlanType
+  createdAt DateTime        @default(now())
+  license   License         @relation(fields: [licenseId], references: [id], onDelete: Cascade)
 }

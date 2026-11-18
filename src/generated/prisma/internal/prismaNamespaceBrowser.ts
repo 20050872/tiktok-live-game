@@ -53,7 +53,8 @@ export const AnyNull = runtime.AnyNull
 export const ModelName = {
   User: 'User',
   Subscription: 'Subscription',
-  License: 'License'
+  License: 'License',
+  ShopierOrder: 'ShopierOrder'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -103,12 +104,24 @@ export const LicenseScalarFieldEnum = {
   buyerEmail: 'buyerEmail',
   orderId: 'orderId',
   planType: 'planType',
+  startedAt: 'startedAt',
   expiresAt: 'expiresAt',
   isActive: 'isActive',
   createdAt: 'createdAt'
 } as const
 
 export type LicenseScalarFieldEnum = (typeof LicenseScalarFieldEnum)[keyof typeof LicenseScalarFieldEnum]
+
+
+export const ShopierOrderScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  licenseId: 'licenseId',
+  planType: 'planType',
+  createdAt: 'createdAt'
+} as const
+
+export type ShopierOrderScalarFieldEnum = (typeof ShopierOrderScalarFieldEnum)[keyof typeof ShopierOrderScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -125,4 +138,12 @@ export const QueryMode = {
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 

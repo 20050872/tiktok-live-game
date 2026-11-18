@@ -11,4 +11,5 @@
 export type * from './models/User.js'
 export type * from './models/Subscription.js'
 export type * from './models/License.js'
+export type * from './models/ShopierOrder.js'
 export type * from './commonInputTypes.js'

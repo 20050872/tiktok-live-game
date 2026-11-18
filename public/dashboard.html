@@ -282,7 +282,7 @@
           const subscription = data.subscription || {};
           infoFields.name.textContent = publisher.tiktokUsername ? `@${publisher.tiktokUsername.replace(/^@/, '')}` : '—';
           infoFields.subscription.textContent = subscription.status || 'Abonelik yok';
-          infoFields.time.textContent = subscription.remainingSeconds > 0 ? formatRemaining(subscription.remainingSeconds) : 'Süre dolmuş';
+          infoFields.time.textContent = subscription.expiresAt === null ? 'Süresiz' : subscription.remainingSeconds > 0 ? formatRemaining(subscription.remainingSeconds) : 'Süre dolmuş';
           const active = subscription.isActive === true;
           subscriptionPill.textContent = active ? 'Abonelik aktif' : 'Abonelik pasif';
           subscriptionPill.className = `status-pill ${active ? 'good' : 'bad'}`;

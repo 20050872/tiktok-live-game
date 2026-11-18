@@ -5,9 +5,9 @@ import { LicenseService, type PlanType } from '../../services/LicenseService';
 
 type RecordValue = Record<string, unknown>;
 const plans: Array<{ type: PlanType; label: string; days: number | null; amount: number; url: string }> = [
-  { type: 'SEVEN_DAYS', label: 'Haftalık', days: 7, amount: Number(process.env.SHOPIER_WEEKLY_AMOUNT || 149), url: process.env.SHOPIER_WEEKLY_URL || '' },
-  { type: 'ONE_MONTH', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 349), url: process.env.SHOPIER_MONTHLY_URL || '' },
-  { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 1299), url: process.env.SHOPIER_LIFETIME_URL || '' },
+  { type: 'SEVEN_DAYS', label: 'Haftalık', days: 7, amount: Number(process.env.SHOPIER_WEEKLY_AMOUNT || 500), url: process.env.SHOPIER_WEEKLY_URL || '' },
+  { type: 'ONE_MONTH', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 1000), url: process.env.SHOPIER_MONTHLY_URL || '' },
+  { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 2500), url: process.env.SHOPIER_LIFETIME_URL || '' },
 ];
 function send(response: ServerResponse, status: number, body: object) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(body)); }
 function sendOsb(response: ServerResponse, status: number, body: string) { response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(body); }
@@ -106,149 +106,148 @@ function readOsbField(body: unknown, key: string): unknown {
   }
   return undefined;
 }
-function findPlanInProductList(value: unknown): PlanType | null {
-  const strings: string[] = [];
-  const collect = (item: unknown): void => {
+function inspectProductList(value: unknown): { ids: string[]; names: string[]; amounts: number[] } {
+  const ids = new Set<string>(); const names = new Set<string>(); const amounts = new Set<number>();
+  const visit = (item: unknown, field = ''): void => {
     if (typeof item === 'string') {
       const trimmed = item.trim();
-      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-        try { collect(JSON.parse(trimmed) as unknown); return; } catch { /* plain variation text */ }
-      }
-      strings.push(trimmed); return;
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) { try { visit(JSON.parse(trimmed) as unknown, field); return; } catch { /* plain product or variation label */ } }
+      if (/^(?:product_?id|productid|item_?id|itemid|id)$/i.test(field) && trimmed) ids.add(trimmed);
+      if (/(?:name|title|variation|variant|option|product|item)/i.test(field) && trimmed) names.add(trimmed);
+      if (/(?:amount|price|total|value)/i.test(field)) { const amount = Number(trimmed.replace(',', '.')); if (Number.isFinite(amount)) amounts.add(amount); }
+      if (!field && trimmed) names.add(trimmed);
+      return;
     }
-    if (Array.isArray(item)) { item.forEach(collect); return; }
-    if (isRecord(item)) Object.entries(item).forEach(([name, child]) => { strings.push(name); collect(child); });
+    if (typeof item === 'number') {
+      if (/^(?:product_?id|productid|item_?id|itemid|id)$/i.test(field)) ids.add(String(item));
+      if (/(?:amount|price|total|value)/i.test(field) && Number.isFinite(item)) amounts.add(item);
+      return;
+    }
+    if (Array.isArray(item)) { item.forEach((entry) => visit(entry)); return; }
+    if (isRecord(item)) for (const [key, child] of Object.entries(item)) visit(child, key);
   };
-  collect(value);
-  for (const candidate of strings) { const plan = parsePlan(candidate); if (plan) return plan; }
-  return null;
+  visit(value);
+  return { ids: [...ids], names: [...names], amounts: [...amounts] };
 }
-
-function isTestPayload(payload: unknown, body: unknown): boolean {
-  const top = readOsbField(body, 'istest');
-  if (top === 1 || top === '1' || top === true || top === 'true') return true;
-  if (isRecord(payload)) {
-    const flag = payload.istest ?? payload.is_test ?? payload.test;
-    if (flag === 1 || flag === '1' || flag === true || flag === 'true') return true;
-    const email = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
-    if (email.includes('shopier') || email.includes('test@') || email === 'test@test.com') return true;
+function resolveOsbPlan(payload: RecordValue): { plan: PlanType | null; reason: string; productIds: string[]; amounts: number[] } {
+  const product = inspectProductList(payload.productlist);
+  const configuredIds: Array<{ env: string; type: PlanType }> = [
+    { env: process.env.SHOPIER_PRODUCT_ID_TEST?.trim() ?? '', type: 'TEST' },
+    { env: process.env.SHOPIER_PRODUCT_ID_WEEKLY?.trim() ?? '', type: 'SEVEN_DAYS' },
+    { env: process.env.SHOPIER_PRODUCT_ID_MONTHLY?.trim() ?? '', type: 'ONE_MONTH' },
+    { env: process.env.SHOPIER_PRODUCT_ID_LIFETIME?.trim() ?? '', type: 'LIFETIME' },
+  ];
+  for (const id of product.ids) {
+    const match = configuredIds.find((configured) => configured.env && configured.env === id);
+    if (match) return { plan: match.type, reason: `ürün ID eşleşmesi (${match.type})`, productIds: product.ids, amounts: product.amounts };
   }
-  return false;
+
+  const payloadAmount = Number(String(payload.price ?? payload.total_order_value ?? payload.amount ?? '').replace(',', '.'));
+  const amounts = [...new Set([...product.amounts, ...(Number.isFinite(payloadAmount) && payloadAmount > 0 ? [payloadAmount] : [])])];
+  for (const amount of amounts) {
+    for (const candidate of plans) {
+      // %5 tolerans (en az 25 TL), küçük indirim/kargo/komisyon farklarını karşılar ve paket aralıklarını çakıştırmaz.
+      const tolerance = Math.max(25, candidate.amount * 0.05);
+      if (Math.abs(candidate.amount - amount) <= tolerance) return { plan: candidate.type, reason: `tutar eşleşmesi (${amount} TL)`, productIds: product.ids, amounts };
+    }
+  }
+
+  const labels = [...product.names, clean(payload.product_name ?? payload.productName ?? payload.variation ?? payload.product_variation, 200)].filter(Boolean);
+  for (const label of labels) {
+    const match = parsePlan(label);
+    if (match) return { plan: match, reason: `ürün adı/varyasyon eşleşmesi (${label})`, productIds: product.ids, amounts };
+  }
+  return { plan: null, reason: product.ids.length ? 'ürün ID eşleşmedi; tutar ve isim fallback eşleşmesi de bulunamadı' : 'productlist içinde ürün ID bulunamadı; tutar ve isim fallback eşleşmesi de bulunamadı', productIds: product.ids, amounts };
 }
 
 /** Shopier OSB sends form fields res/hash; this is intentionally separate from the legacy payment callback. */
 export async function shopierOsbCallback(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  let parsed: { body: unknown; raw: string; contentType: string };
-  try {
-    parsed = await readShopierOsbBody(request);
-  } catch (err) {
-    console.warn('[Shopier OSB] Body okunamadı:', err instanceof Error ? err.message : err);
-    sendOsb(response, 400, 'missing parameter');
-    return;
-  }
-
-  const { body, raw, contentType } = parsed;
-  console.info('[Shopier OSB] Gelen istek', JSON.stringify({
-    method: request.method,
-    contentType,
-    rawLength: raw.length,
-    bodyKeys: isRecord(body) ? Object.keys(body) : Array.isArray(body) ? `array(${body.length})` : typeof body,
-  }));
-
-  if (isTestPayload(null, body)) {
-    console.info('[Shopier OSB] Test isteği algılandı (üst seviye) → success');
-    sendOsb(response, 200, 'success');
-    return;
-  }
-
+  let parsedBody: Awaited<ReturnType<typeof readShopierOsbBody>>;
+  try { parsedBody = await readShopierOsbBody(request); }
+  catch (err) { console.warn('[Shopier OSB] Body okunamadı:', err instanceof Error ? err.message : err); sendOsb(response, 400, 'missing parameter'); return; }
+  const body = parsedBody.body;
+  console.info('[Shopier OSB] Gelen istek', JSON.stringify({ method: request.method, contentType: parsedBody.contentType, rawLength: parsedBody.raw.length }));
   const encodedRes = readOsbField(body, 'res');
   const receivedHash = clean(readOsbField(body, 'hash'), 256).toLowerCase();
+  if (typeof encodedRes !== 'string' || !encodedRes) { sendOsb(response, 400, 'missing parameter'); return; }
 
-  if (typeof encodedRes !== 'string' || !encodedRes) {
-    console.info('[Shopier OSB] res yok, probe kabul edildi → success');
-    sendOsb(response, 200, 'success');
-    return;
-  }
-
+  // Decode before signature verification so the exact signed `res` value can be checked.
   let payload: unknown;
   try {
     const decoded = Buffer.from(encodedRes, 'base64');
-    if (!decoded.length) throw new Error('empty base64');
+    if (!decoded.length || decoded.toString('base64').replace(/=+$/, '') !== encodedRes.replace(/\s/g, '').replace(/=+$/, '')) throw new Error('bad base64');
     payload = JSON.parse(decoded.toString('utf8')) as unknown;
-  } catch {
-    console.warn('[Shopier OSB] res decode edilemedi');
-    sendOsb(response, 400, 'invalid res');
-    return;
-  }
-
-  if (isTestPayload(payload, body)) {
-    console.info('[Shopier OSB] Test isteği algılandı (payload) → success');
-    sendOsb(response, 200, 'success');
-    return;
-  }
+  } catch { sendOsb(response, 400, 'invalid res'); return; }
 
   const username = process.env.SHOPIER_OSB_USERNAME?.trim() ?? '';
   const key = process.env.SHOPIER_OSB_PASSWORD?.trim() ?? '';
-  if (!receivedHash || !username || !key) {
-    console.warn('[Shopier OSB] OSB credentials veya hash eksik');
-    sendOsb(response, 400, 'missing parameter');
-    return;
-  }
+  if (!receivedHash || !username || !key) { sendOsb(response, 400, 'missing parameter'); return; }
 
   const expectedHash = createHmac('sha256', key).update(`${encodedRes}${username}`).digest('hex');
-  const expectedBytes = Buffer.from(expectedHash, 'hex');
-  const receivedBytes = Buffer.from(receivedHash, 'hex');
-  if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) {
-    console.warn('[Shopier OSB] HMAC doğrulaması başarısız');
-    sendOsb(response, 401, 'unauthorized');
-    return;
-  }
+  const expectedBytes = Buffer.from(expectedHash, 'hex'); const receivedBytes = Buffer.from(receivedHash, 'hex');
+  if (receivedBytes.length !== expectedBytes.length || !timingSafeEqual(receivedBytes, expectedBytes)) { sendOsb(response, 401, 'unauthorized'); return; }
 
-  if (!isRecord(payload)) {
-    sendOsb(response, 400, 'invalid res');
-    return;
-  }
+  if (!isRecord(payload)) { sendOsb(response, 400, 'invalid res'); return; }
+  if (payload.istest === 1 || payload.istest === '1') { sendOsb(response, 200, 'success'); return; }
 
   const orderId = clean(payload.orderid ?? payload.order_id ?? payload.platform_order_id, 160);
   let productListLog: string;
   try { productListLog = JSON.stringify(payload.productlist ?? null) ?? 'null'; } catch { productListLog = '[unserializable]'; }
-  const priceRaw = payload.price ?? payload.total ?? payload.amount ?? null;
-  console.info('[Shopier OSB] Sipariş bildirimi', JSON.stringify({
-    orderid: orderId,
-    email: clean(payload.email ?? payload.buyeremail, 254),
-    price: priceRaw,
-    productlist: productListLog.slice(0, 1200),
-    istest: payload.istest ?? null,
-  }));
-
+  console.info('[Shopier OSB] Sipariş bildirimi', JSON.stringify({ orderid: orderId, email: clean(payload.email ?? payload.buyeremail, 254), productlist: productListLog.slice(0, 1200), istest: payload.istest ?? null }));
   const buyerEmail = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
   const customerName = [clean(payload.buyername ?? payload.customer_name, 100), clean(payload.buyersurname ?? payload.buyer_surname, 100)].filter(Boolean).join(' ').trim() || buyerEmail;
-
-  let plan = findPlanInProductList(payload.productlist);
-  if (!plan) {
-    const priceNum = Number(String(priceRaw ?? '').replace(',', '.'));
-    if (Number.isFinite(priceNum)) {
-      plan = plans.find((candidate) => Math.abs(candidate.amount - priceNum) < 0.05)?.type ?? null;
-    }
+  if (!orderId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) {
+    console.warn('[Shopier OSB] Sipariş lisansı oluşturulamadı: sipariş numarası veya alıcı e-postası eksik/geçersiz.', JSON.stringify({ orderid: orderId || null, emailPresent: Boolean(buyerEmail) }));
+    sendOsb(response, 400, 'invalid order'); return;
   }
-  if (!plan) {
-    plan = parsePlan(payload.productid ?? payload.product_id ?? payload.productname ?? payload.product_name) ?? null;
+  const resolved = resolveOsbPlan(payload);
+  if (!resolved.plan) {
+    console.error('[Shopier OSB] EŞLEŞME UYARISI: Gerçek sipariş lisanssız kalabilir; ürün ID/fiyat/isim yapılandırmasını kontrol edin.', JSON.stringify({ orderid: orderId, reason: resolved.reason, productIds: resolved.productIds, amounts: resolved.amounts }));
+    sendOsb(response, 400, 'invalid order'); return;
   }
-
-  if (!orderId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail) || !plan) {
-    console.warn('[Shopier OSB] invalid order', { orderId: !!orderId, emailOk: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail), plan });
-    sendOsb(response, 400, 'invalid order');
-    return;
-  }
+  const plan = resolved.plan;
+  console.info('[Shopier OSB] Paket eşleşti.', JSON.stringify({ orderid: orderId, plan, reason: resolved.reason, productIds: resolved.productIds }));
+  if (plan === 'TEST') console.info('[TEST PLAN] Shopier test ürünü için 1 günlük lisans işleniyor.', JSON.stringify({ orderid: orderId, productIds: resolved.productIds }));
 
   try {
     const prisma = getPrismaClient();
-    const existing = await prisma.license.findUnique({ where: { orderId } });
-    if (!existing) await LicenseService.create({ customerName, buyerEmail, orderId, planType: plan });
-    console.info('[Shopier OSB] Lisans OK', { orderId, plan, existing: !!existing });
+    await prisma.$transaction(async (tx) => {
+      const priorOrder = await tx.shopierOrder.findUnique({ where: { orderId } });
+      if (priorOrder) return;
+
+      // Preserve idempotency for orders fulfilled before the ShopierOrder ledger existed.
+      const priorLicense = await tx.license.findUnique({ where: { orderId } });
+      if (priorLicense) {
+        await tx.shopierOrder.create({ data: { orderId, licenseId: priorLicense.id, planType: priorLicense.planType } });
+        return;
+      }
+
+      const existing = await tx.license.findFirst({ where: { buyerEmail }, orderBy: { createdAt: 'desc' } });
+      let licenseId: string;
+      if (existing) {
+        const currentLifetime = existing.planType === 'LIFETIME' || existing.expiresAt === null;
+        const purchasedLifetime = plan === 'LIFETIME';
+        const days = plan === 'SEVEN_DAYS' ? 7 : plan === 'TEST' ? 1 : plan === 'ONE_MONTH' ? 30 : null;
+        const start = existing.expiresAt && existing.expiresAt.getTime() > Date.now() ? existing.expiresAt : new Date();
+        const expiresAt = currentLifetime || purchasedLifetime ? null : new Date(start.getTime() + (days ?? 0) * 86_400_000);
+        const effectivePlan = currentLifetime || purchasedLifetime ? 'LIFETIME' : plan;
+        const updated = await tx.license.update({ where: { id: existing.id }, data: { expiresAt, planType: effectivePlan, isActive: true } });
+        licenseId = updated.id;
+      } else {
+        const keyValue = randomUUID();
+        const days = plan === 'SEVEN_DAYS' ? 7 : plan === 'TEST' ? 1 : plan === 'ONE_MONTH' ? 30 : null;
+        const expiresAt = days === null ? null : new Date(Date.now() + days * 86_400_000);
+        const created = await tx.license.create({ data: { licenseKey: keyValue, overlayToken: keyValue, customerName, buyerEmail, orderId, planType: plan, expiresAt, isActive: true } });
+        licenseId = created.id;
+      }
+      await tx.shopierOrder.create({ data: { orderId, licenseId, planType: plan } });
+    });
     sendOsb(response, 200, 'success');
-  } catch (err) {
-    console.error('[Shopier OSB] Lisans kaydı oluşturulamadı.', err instanceof Error ? err.message : err);
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002') {
+      try { if (await getPrismaClient().shopierOrder.findUnique({ where: { orderId } })) { sendOsb(response, 200, 'success'); return; } } catch { /* respond with retryable failure below */ }
+    }
+    console.error('[Shopier OSB] Lisans kaydı oluşturulamadı.');
     sendOsb(response, 500, 'error');
   }
 }
@@ -261,8 +260,8 @@ function parsePlan(value: unknown): PlanType | null {
   if (normalized.includes('lifetime') || normalized.includes('sinirsiz') || normalized.includes('omur_boyu') || normalized.includes('unlimited') || normalized.includes('omur')) return 'LIFETIME';
   return null;
 }
-function publicPlanType(plan: string): '7_days' | '1_month' | 'lifetime' {
-  return plan === 'SEVEN_DAYS' ? '7_days' : plan === 'ONE_MONTH' ? '1_month' : 'lifetime';
+function publicPlanType(plan: string): '7_days' | '1_month' | 'lifetime' | 'test' {
+  return plan === 'SEVEN_DAYS' ? '7_days' : plan === 'ONE_MONTH' ? '1_month' : plan === 'TEST' ? 'test' : 'lifetime';
 }
 function isAdmin(request: IncomingMessage): boolean {
   const configured = process.env.ADMIN_SECRET?.trim() || 'dev-admin-change-me';
@@ -291,7 +290,7 @@ export async function validateLicense(request: IncomingMessage, response: Server
     const token = clean(body.licenseKey ?? body.overlayToken ?? body.token, 64);
     const license = await LicenseService.validateToken(token);
     if (!license) { send(response, 403, { status: 'error', message: 'Lisans süresi dolmuş veya geçersiz.' }); return; }
-    send(response, 200, { status: 'ok', license: { id: license.id, licenseKey: license.licenseKey, customerName: license.customerName, planType: publicPlanType(license.planType), expiresAt: license.expiresAt, isActive: license.isActive } });
+    send(response, 200, { status: 'ok', license: { id: license.id, licenseKey: license.licenseKey, customerEmail: license.customerEmail, customerName: license.customerName, planType: publicPlanType(license.planType), startedAt: license.startedAt, expiresAt: license.expiresAt, isActive: license.isActive } });
   } catch (error) { send(response, 400, { status: 'error', message: error instanceof Error ? error.message : 'Geçersiz istek.' }); }
 }
 

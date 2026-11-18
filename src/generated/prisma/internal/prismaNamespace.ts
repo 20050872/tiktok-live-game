@@ -399,7 +399,8 @@ type FieldRefInputType<Model, FieldType> = Model extends never ? never : FieldRe
 export const ModelName = {
   User: 'User',
   Subscription: 'Subscription',
-  License: 'License'
+  License: 'License',
+  ShopierOrder: 'ShopierOrder'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -415,7 +416,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "subscription" | "license"
+    modelProps: "user" | "subscription" | "license" | "shopierOrder"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -641,6 +642,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ShopierOrder: {
+      payload: Prisma.$ShopierOrderPayload<ExtArgs>
+      fields: Prisma.ShopierOrderFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ShopierOrderFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ShopierOrderFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        findFirst: {
+          args: Prisma.ShopierOrderFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ShopierOrderFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        findMany: {
+          args: Prisma.ShopierOrderFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>[]
+        }
+        create: {
+          args: Prisma.ShopierOrderCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        createMany: {
+          args: Prisma.ShopierOrderCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ShopierOrderCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>[]
+        }
+        delete: {
+          args: Prisma.ShopierOrderDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        update: {
+          args: Prisma.ShopierOrderUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        deleteMany: {
+          args: Prisma.ShopierOrderDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ShopierOrderUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ShopierOrderUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>[]
+        }
+        upsert: {
+          args: Prisma.ShopierOrderUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ShopierOrderPayload>
+        }
+        aggregate: {
+          args: Prisma.ShopierOrderAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateShopierOrder>
+        }
+        groupBy: {
+          args: Prisma.ShopierOrderGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShopierOrderGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ShopierOrderCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ShopierOrderCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -711,12 +786,24 @@ export const LicenseScalarFieldEnum = {
   buyerEmail: 'buyerEmail',
   orderId: 'orderId',
   planType: 'planType',
+  startedAt: 'startedAt',
   expiresAt: 'expiresAt',
   isActive: 'isActive',
   createdAt: 'createdAt'
 } as const
 
 export type LicenseScalarFieldEnum = (typeof LicenseScalarFieldEnum)[keyof typeof LicenseScalarFieldEnum]
+
+
+export const ShopierOrderScalarFieldEnum = {
+  id: 'id',
+  orderId: 'orderId',
+  licenseId: 'licenseId',
+  planType: 'planType',
+  createdAt: 'createdAt'
+} as const
+
+export type ShopierOrderScalarFieldEnum = (typeof ShopierOrderScalarFieldEnum)[keyof typeof ShopierOrderScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -733,6 +820,14 @@ export const QueryMode = {
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const NullsOrder = {
+  first: 'first',
+  last: 'last'
+} as const
+
+export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
 
@@ -971,6 +1066,7 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   subscription?: Prisma.SubscriptionOmit
   license?: Prisma.LicenseOmit
+  shopierOrder?: Prisma.ShopierOrderOmit
 }
 
 /* Types for Logging */

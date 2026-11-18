@@ -32,6 +32,7 @@ export type LicenseMinAggregateOutputType = {
   buyerEmail: string | null
   orderId: string | null
   planType: $Enums.LicensePlanType | null
+  startedAt: Date | null
   expiresAt: Date | null
   isActive: boolean | null
   createdAt: Date | null
@@ -45,6 +46,7 @@ export type LicenseMaxAggregateOutputType = {
   buyerEmail: string | null
   orderId: string | null
   planType: $Enums.LicensePlanType | null
+  startedAt: Date | null
   expiresAt: Date | null
   isActive: boolean | null
   createdAt: Date | null
@@ -58,6 +60,7 @@ export type LicenseCountAggregateOutputType = {
   buyerEmail: number
   orderId: number
   planType: number
+  startedAt: number
   expiresAt: number
   isActive: number
   createdAt: number
@@ -73,6 +76,7 @@ export type LicenseMinAggregateInputType = {
   buyerEmail?: true
   orderId?: true
   planType?: true
+  startedAt?: true
   expiresAt?: true
   isActive?: true
   createdAt?: true
@@ -86,6 +90,7 @@ export type LicenseMaxAggregateInputType = {
   buyerEmail?: true
   orderId?: true
   planType?: true
+  startedAt?: true
   expiresAt?: true
   isActive?: true
   createdAt?: true
@@ -99,6 +104,7 @@ export type LicenseCountAggregateInputType = {
   buyerEmail?: true
   orderId?: true
   planType?: true
+  startedAt?: true
   expiresAt?: true
   isActive?: true
   createdAt?: true
@@ -185,7 +191,8 @@ export type LicenseGroupByOutputType = {
   buyerEmail: string
   orderId: string
   planType: $Enums.LicensePlanType
-  expiresAt: Date
+  startedAt: Date
+  expiresAt: Date | null
   isActive: boolean
   createdAt: Date
   _count: LicenseCountAggregateOutputType | null
@@ -219,9 +226,11 @@ export type LicenseWhereInput = {
   buyerEmail?: Prisma.StringFilter<"License"> | string
   orderId?: Prisma.StringFilter<"License"> | string
   planType?: Prisma.EnumLicensePlanTypeFilter<"License"> | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  startedAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableFilter<"License"> | Date | string | null
   isActive?: Prisma.BoolFilter<"License"> | boolean
   createdAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  shopierOrders?: Prisma.ShopierOrderListRelationFilter
 }
 
 export type LicenseOrderByWithRelationInput = {
@@ -232,9 +241,11 @@ export type LicenseOrderByWithRelationInput = {
   buyerEmail?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
   planType?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrder
+  startedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  shopierOrders?: Prisma.ShopierOrderOrderByRelationAggregateInput
 }
 
 export type LicenseWhereUniqueInput = Prisma.AtLeast<{
@@ -248,9 +259,11 @@ export type LicenseWhereUniqueInput = Prisma.AtLeast<{
   customerName?: Prisma.StringFilter<"License"> | string
   buyerEmail?: Prisma.StringFilter<"License"> | string
   planType?: Prisma.EnumLicensePlanTypeFilter<"License"> | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  startedAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableFilter<"License"> | Date | string | null
   isActive?: Prisma.BoolFilter<"License"> | boolean
   createdAt?: Prisma.DateTimeFilter<"License"> | Date | string
+  shopierOrders?: Prisma.ShopierOrderListRelationFilter
 }, "id" | "licenseKey" | "overlayToken" | "orderId">
 
 export type LicenseOrderByWithAggregationInput = {
@@ -261,7 +274,8 @@ export type LicenseOrderByWithAggregationInput = {
   buyerEmail?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
   planType?: Prisma.SortOrder
-  expiresAt?: Prisma.SortOrder
+  startedAt?: Prisma.SortOrder
+  expiresAt?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.LicenseCountOrderByAggregateInput
@@ -280,7 +294,8 @@ export type LicenseScalarWhereWithAggregatesInput = {
   buyerEmail?: Prisma.StringWithAggregatesFilter<"License"> | string
   orderId?: Prisma.StringWithAggregatesFilter<"License"> | string
   planType?: Prisma.EnumLicensePlanTypeWithAggregatesFilter<"License"> | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeWithAggregatesFilter<"License"> | Date | string
+  startedAt?: Prisma.DateTimeWithAggregatesFilter<"License"> | Date | string
+  expiresAt?: Prisma.DateTimeNullableWithAggregatesFilter<"License"> | Date | string | null
   isActive?: Prisma.BoolWithAggregatesFilter<"License"> | boolean
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"License"> | Date | string
 }
@@ -293,9 +308,11 @@ export type LicenseCreateInput = {
   buyerEmail?: string
   orderId: string
   planType: $Enums.LicensePlanType
-  expiresAt: Date | string
+  startedAt?: Date | string
+  expiresAt?: Date | string | null
   isActive?: boolean
   createdAt?: Date | string
+  shopierOrders?: Prisma.ShopierOrderCreateNestedManyWithoutLicenseInput
 }
 
 export type LicenseUncheckedCreateInput = {
@@ -306,9 +323,11 @@ export type LicenseUncheckedCreateInput = {
   buyerEmail?: string
   orderId: string
   planType: $Enums.LicensePlanType
-  expiresAt: Date | string
+  startedAt?: Date | string
+  expiresAt?: Date | string | null
   isActive?: boolean
   createdAt?: Date | string
+  shopierOrders?: Prisma.ShopierOrderUncheckedCreateNestedManyWithoutLicenseInput
 }
 
 export type LicenseUpdateInput = {
@@ -319,9 +338,11 @@ export type LicenseUpdateInput = {
   buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
   planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shopierOrders?: Prisma.ShopierOrderUpdateManyWithoutLicenseNestedInput
 }
 
 export type LicenseUncheckedUpdateInput = {
@@ -332,9 +353,11 @@ export type LicenseUncheckedUpdateInput = {
   buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
   planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  shopierOrders?: Prisma.ShopierOrderUncheckedUpdateManyWithoutLicenseNestedInput
 }
 
 export type LicenseCreateManyInput = {
@@ -345,7 +368,8 @@ export type LicenseCreateManyInput = {
   buyerEmail?: string
   orderId: string
   planType: $Enums.LicensePlanType
-  expiresAt: Date | string
+  startedAt?: Date | string
+  expiresAt?: Date | string | null
   isActive?: boolean
   createdAt?: Date | string
 }
@@ -358,7 +382,8 @@ export type LicenseUpdateManyMutationInput = {
   buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
   planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -371,7 +396,8 @@ export type LicenseUncheckedUpdateManyInput = {
   buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
   orderId?: Prisma.StringFieldUpdateOperationsInput | string
   planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
-  expiresAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -384,6 +410,7 @@ export type LicenseCountOrderByAggregateInput = {
   buyerEmail?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
   planType?: Prisma.SortOrder
+  startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -397,6 +424,7 @@ export type LicenseMaxOrderByAggregateInput = {
   buyerEmail?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
   planType?: Prisma.SortOrder
+  startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -410,19 +438,144 @@ export type LicenseMinOrderByAggregateInput = {
   buyerEmail?: Prisma.SortOrder
   orderId?: Prisma.SortOrder
   planType?: Prisma.SortOrder
+  startedAt?: Prisma.SortOrder
   expiresAt?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+}
+
+export type LicenseScalarRelationFilter = {
+  is?: Prisma.LicenseWhereInput
+  isNot?: Prisma.LicenseWhereInput
 }
 
 export type EnumLicensePlanTypeFieldUpdateOperationsInput = {
   set?: $Enums.LicensePlanType
 }
 
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
 export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type LicenseCreateNestedOneWithoutShopierOrdersInput = {
+  create?: Prisma.XOR<Prisma.LicenseCreateWithoutShopierOrdersInput, Prisma.LicenseUncheckedCreateWithoutShopierOrdersInput>
+  connectOrCreate?: Prisma.LicenseCreateOrConnectWithoutShopierOrdersInput
+  connect?: Prisma.LicenseWhereUniqueInput
+}
+
+export type LicenseUpdateOneRequiredWithoutShopierOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.LicenseCreateWithoutShopierOrdersInput, Prisma.LicenseUncheckedCreateWithoutShopierOrdersInput>
+  connectOrCreate?: Prisma.LicenseCreateOrConnectWithoutShopierOrdersInput
+  upsert?: Prisma.LicenseUpsertWithoutShopierOrdersInput
+  connect?: Prisma.LicenseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.LicenseUpdateToOneWithWhereWithoutShopierOrdersInput, Prisma.LicenseUpdateWithoutShopierOrdersInput>, Prisma.LicenseUncheckedUpdateWithoutShopierOrdersInput>
+}
+
+export type LicenseCreateWithoutShopierOrdersInput = {
+  id?: string
+  licenseKey?: string
+  overlayToken?: string
+  customerName: string
+  buyerEmail?: string
+  orderId: string
+  planType: $Enums.LicensePlanType
+  startedAt?: Date | string
+  expiresAt?: Date | string | null
+  isActive?: boolean
+  createdAt?: Date | string
+}
+
+export type LicenseUncheckedCreateWithoutShopierOrdersInput = {
+  id?: string
+  licenseKey?: string
+  overlayToken?: string
+  customerName: string
+  buyerEmail?: string
+  orderId: string
+  planType: $Enums.LicensePlanType
+  startedAt?: Date | string
+  expiresAt?: Date | string | null
+  isActive?: boolean
+  createdAt?: Date | string
+}
+
+export type LicenseCreateOrConnectWithoutShopierOrdersInput = {
+  where: Prisma.LicenseWhereUniqueInput
+  create: Prisma.XOR<Prisma.LicenseCreateWithoutShopierOrdersInput, Prisma.LicenseUncheckedCreateWithoutShopierOrdersInput>
+}
+
+export type LicenseUpsertWithoutShopierOrdersInput = {
+  update: Prisma.XOR<Prisma.LicenseUpdateWithoutShopierOrdersInput, Prisma.LicenseUncheckedUpdateWithoutShopierOrdersInput>
+  create: Prisma.XOR<Prisma.LicenseCreateWithoutShopierOrdersInput, Prisma.LicenseUncheckedCreateWithoutShopierOrdersInput>
+  where?: Prisma.LicenseWhereInput
+}
+
+export type LicenseUpdateToOneWithWhereWithoutShopierOrdersInput = {
+  where?: Prisma.LicenseWhereInput
+  data: Prisma.XOR<Prisma.LicenseUpdateWithoutShopierOrdersInput, Prisma.LicenseUncheckedUpdateWithoutShopierOrdersInput>
+}
+
+export type LicenseUpdateWithoutShopierOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  licenseKey?: Prisma.StringFieldUpdateOperationsInput | string
+  overlayToken?: Prisma.StringFieldUpdateOperationsInput | string
+  customerName?: Prisma.StringFieldUpdateOperationsInput | string
+  buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type LicenseUncheckedUpdateWithoutShopierOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  licenseKey?: Prisma.StringFieldUpdateOperationsInput | string
+  overlayToken?: Prisma.StringFieldUpdateOperationsInput | string
+  customerName?: Prisma.StringFieldUpdateOperationsInput | string
+  buyerEmail?: Prisma.StringFieldUpdateOperationsInput | string
+  orderId?: Prisma.StringFieldUpdateOperationsInput | string
+  planType?: Prisma.EnumLicensePlanTypeFieldUpdateOperationsInput | $Enums.LicensePlanType
+  startedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  expiresAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+
+/**
+ * Count Type LicenseCountOutputType
+ */
+
+export type LicenseCountOutputType = {
+  shopierOrders: number
+}
+
+export type LicenseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  shopierOrders?: boolean | LicenseCountOutputTypeCountShopierOrdersArgs
+}
+
+/**
+ * LicenseCountOutputType without action
+ */
+export type LicenseCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the LicenseCountOutputType
+   */
+  select?: Prisma.LicenseCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * LicenseCountOutputType without action
+ */
+export type LicenseCountOutputTypeCountShopierOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ShopierOrderWhereInput
+}
 
 
 export type LicenseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -433,9 +586,12 @@ export type LicenseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   buyerEmail?: boolean
   orderId?: boolean
   planType?: boolean
+  startedAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
   createdAt?: boolean
+  shopierOrders?: boolean | Prisma.License$shopierOrdersArgs<ExtArgs>
+  _count?: boolean | Prisma.LicenseCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["license"]>
 
 export type LicenseSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -446,6 +602,7 @@ export type LicenseSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   buyerEmail?: boolean
   orderId?: boolean
   planType?: boolean
+  startedAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
   createdAt?: boolean
@@ -459,6 +616,7 @@ export type LicenseSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   buyerEmail?: boolean
   orderId?: boolean
   planType?: boolean
+  startedAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
   createdAt?: boolean
@@ -472,16 +630,25 @@ export type LicenseSelectScalar = {
   buyerEmail?: boolean
   orderId?: boolean
   planType?: boolean
+  startedAt?: boolean
   expiresAt?: boolean
   isActive?: boolean
   createdAt?: boolean
 }
 
-export type LicenseOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "licenseKey" | "overlayToken" | "customerName" | "buyerEmail" | "orderId" | "planType" | "expiresAt" | "isActive" | "createdAt", ExtArgs["result"]["license"]>
+export type LicenseOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "licenseKey" | "overlayToken" | "customerName" | "buyerEmail" | "orderId" | "planType" | "startedAt" | "expiresAt" | "isActive" | "createdAt", ExtArgs["result"]["license"]>
+export type LicenseInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  shopierOrders?: boolean | Prisma.License$shopierOrdersArgs<ExtArgs>
+  _count?: boolean | Prisma.LicenseCountOutputTypeDefaultArgs<ExtArgs>
+}
+export type LicenseIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
+export type LicenseIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
 
 export type $LicensePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "License"
-  objects: {}
+  objects: {
+    shopierOrders: Prisma.$ShopierOrderPayload<ExtArgs>[]
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     licenseKey: string
@@ -490,7 +657,8 @@ export type $LicensePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     buyerEmail: string
     orderId: string
     planType: $Enums.LicensePlanType
-    expiresAt: Date
+    startedAt: Date
+    expiresAt: Date | null
     isActive: boolean
     createdAt: Date
   }, ExtArgs["result"]["license"]>
@@ -887,6 +1055,7 @@ readonly fields: LicenseFieldRefs;
  */
 export interface Prisma__LicenseClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  shopierOrders<T extends Prisma.License$shopierOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.License$shopierOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ShopierOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -923,6 +1092,7 @@ export interface LicenseFieldRefs {
   readonly buyerEmail: Prisma.FieldRef<"License", 'String'>
   readonly orderId: Prisma.FieldRef<"License", 'String'>
   readonly planType: Prisma.FieldRef<"License", 'LicensePlanType'>
+  readonly startedAt: Prisma.FieldRef<"License", 'DateTime'>
   readonly expiresAt: Prisma.FieldRef<"License", 'DateTime'>
   readonly isActive: Prisma.FieldRef<"License", 'Boolean'>
   readonly createdAt: Prisma.FieldRef<"License", 'DateTime'>
@@ -943,6 +1113,10 @@ export type LicenseFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.Inter
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * Filter, which License to fetch.
    */
   where: Prisma.LicenseWhereUniqueInput
@@ -961,6 +1135,10 @@ export type LicenseFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extension
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * Filter, which License to fetch.
    */
   where: Prisma.LicenseWhereUniqueInput
@@ -978,6 +1156,10 @@ export type LicenseFindFirstArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Omit specific fields from the License
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
   /**
    * Filter, which License to fetch.
    */
@@ -1027,6 +1209,10 @@ export type LicenseFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensions
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * Filter, which License to fetch.
    */
   where?: Prisma.LicenseWhereInput
@@ -1074,6 +1260,10 @@ export type LicenseFindManyArgs<ExtArgs extends runtime.Types.Extensions.Interna
    * Omit specific fields from the License
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
   /**
    * Filter, which Licenses to fetch.
    */
@@ -1123,6 +1313,10 @@ export type LicenseCreateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * The data needed to create a License.
    */
   data: Prisma.XOR<Prisma.LicenseCreateInput, Prisma.LicenseUncheckedCreateInput>
@@ -1170,6 +1364,10 @@ export type LicenseUpdateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    * Omit specific fields from the License
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
   /**
    * The data needed to update a License.
    */
@@ -1237,6 +1435,10 @@ export type LicenseUpsertArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * The filter to search for the License to update in case it exists.
    */
   where: Prisma.LicenseWhereUniqueInput
@@ -1263,6 +1465,10 @@ export type LicenseDeleteArgs<ExtArgs extends runtime.Types.Extensions.InternalA
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
+  /**
    * Filter which License to delete.
    */
   where: Prisma.LicenseWhereUniqueInput
@@ -1283,6 +1489,30 @@ export type LicenseDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inter
 }
 
 /**
+ * License.shopierOrders
+ */
+export type License$shopierOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ShopierOrder
+   */
+  select?: Prisma.ShopierOrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ShopierOrder
+   */
+  omit?: Prisma.ShopierOrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ShopierOrderInclude<ExtArgs> | null
+  where?: Prisma.ShopierOrderWhereInput
+  orderBy?: Prisma.ShopierOrderOrderByWithRelationInput | Prisma.ShopierOrderOrderByWithRelationInput[]
+  cursor?: Prisma.ShopierOrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ShopierOrderScalarFieldEnum | Prisma.ShopierOrderScalarFieldEnum[]
+}
+
+/**
  * License without action
  */
 export type LicenseDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1294,4 +1524,8 @@ export type LicenseDefaultArgs<ExtArgs extends runtime.Types.Extensions.Internal
    * Omit specific fields from the License
    */
   omit?: Prisma.LicenseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.LicenseInclude<ExtArgs> | null
 }

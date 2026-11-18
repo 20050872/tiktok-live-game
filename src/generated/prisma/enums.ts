@@ -21,7 +21,8 @@ export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof Subscr
 export const LicensePlanType = {
   SEVEN_DAYS: 'SEVEN_DAYS',
   ONE_MONTH: 'ONE_MONTH',
-  LIFETIME: 'LIFETIME'
+  LIFETIME: 'LIFETIME',
+  TEST: 'TEST'
 } as const
 
 export type LicensePlanType = (typeof LicensePlanType)[keyof typeof LicensePlanType]

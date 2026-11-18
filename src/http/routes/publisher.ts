@@ -108,7 +108,7 @@ export async function getPublisherInfo(token: string, response: ServerResponse):
   try {
     const license = await LicenseService.validateToken(token);
     if (!license) { invalidLicense(response); return; }
-    const remainingMs = Math.max(0, license.expiresAt.getTime() - Date.now());
+    const remainingMs = license.expiresAt === null ? null : Math.max(0, license.expiresAt.getTime() - Date.now());
 
     sendJson(response, 200, {
       status: 'ok',
@@ -122,8 +122,8 @@ export async function getPublisherInfo(token: string, response: ServerResponse):
             status: remainingMs === 0 ? 'expired' : 'active',
             expiresAt: license.expiresAt,
             remainingMs,
-            remainingSeconds: Math.ceil(remainingMs / 1000),
-            isActive: license.isActive && remainingMs > 0,
+            remainingSeconds: remainingMs === null ? null : Math.ceil(remainingMs / 1000),
+            isActive: license.isActive && (remainingMs === null || remainingMs > 0),
             planType: license.planType,
           },
     });
