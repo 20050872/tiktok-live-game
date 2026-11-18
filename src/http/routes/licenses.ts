@@ -37,7 +37,6 @@ function parseMultipartFormData(raw: string, contentTypeHeader: string | undefin
     if (headerEnd === -1) continue;
     const headers = part.slice(0, headerEnd);
     let value = part.slice(headerEnd + 4);
-    // strip trailing CRLF
     if (value.endsWith('\r\n')) value = value.slice(0, -2);
     if (value.endsWith('\r\n')) value = value.slice(0, -2);
     const nameMatch = headers.match(/name="([^"]+)"/i) || headers.match(/name=([^;\s]+)/i);
@@ -78,7 +77,6 @@ async function readShopierOsbBody(request: IncomingMessage): Promise<{ body: unk
     return { body, raw, contentType: type || 'application/x-www-form-urlencoded' };
   }
 
-  // Fallback: try multipart first (Shopier sometimes sends wrong content-type), then urlencoded
   if (raw.includes('Content-Disposition: form-data') || raw.includes('name="res"')) {
     const body = parseMultipartFormData(raw, fullContentType || `multipart/form-data; boundary=${raw.split('\r\n')[0].replace(/^--/, '')}`);
     if (Object.keys(body).length > 0) {
@@ -132,7 +130,6 @@ function isTestPayload(payload: unknown, body: unknown): boolean {
   if (isRecord(payload)) {
     const flag = payload.istest ?? payload.is_test ?? payload.test;
     if (flag === 1 || flag === '1' || flag === true || flag === 'true') return true;
-    // Shopier official test often uses placeholder emails
     const email = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
     if (email.includes('shopier') || email.includes('test@') || email === 'test@test.com') return true;
   }
@@ -158,7 +155,6 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
     bodyKeys: isRecord(body) ? Object.keys(body) : Array.isArray(body) ? `array(${body.length})` : typeof body,
   }));
 
-  // Early test flag on top-level fields
   if (isTestPayload(null, body)) {
     console.info('[Shopier OSB] Test isteği algılandı (üst seviye) → success');
     sendOsb(response, 200, 'success');
@@ -168,7 +164,6 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
   const encodedRes = readOsbField(body, 'res');
   const receivedHash = clean(readOsbField(body, 'hash'), 256).toLowerCase();
 
-  // No res at all → treat as accessibility / empty test probe and acknowledge
   if (typeof encodedRes !== 'string' || !encodedRes) {
     console.info('[Shopier OSB] res yok, probe kabul edildi → success');
     sendOsb(response, 200, 'success');
@@ -186,7 +181,6 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
     return;
   }
 
-  // Test payload inside decoded res → always success, never create license
   if (isTestPayload(payload, body)) {
     console.info('[Shopier OSB] Test isteği algılandı (payload) → success');
     sendOsb(response, 200, 'success');
@@ -230,7 +224,6 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
   const buyerEmail = clean(payload.email ?? payload.buyeremail, 254).toLowerCase();
   const customerName = [clean(payload.buyername ?? payload.customer_name, 100), clean(payload.buyersurname ?? payload.buyer_surname, 100)].filter(Boolean).join(' ').trim() || buyerEmail;
 
-  // Plan matching: product name keywords first, then price
   let plan = findPlanInProductList(payload.productlist);
   if (!plan) {
     const priceNum = Number(String(priceRaw ?? '').replace(',', '.'));
@@ -238,7 +231,6 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
       plan = plans.find((candidate) => Math.abs(candidate.amount - priceNum) < 0.05)?.type ?? null;
     }
   }
-  // Also try productid / product_id fields
   if (!plan) {
     plan = parsePlan(payload.productid ?? payload.product_id ?? payload.productname ?? payload.product_name) ?? null;
   }
@@ -265,7 +257,7 @@ function parsePlan(value: unknown): PlanType | null {
   const normalized = clean(value, 80).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[\s-]+/g, '_');
   if (!normalized) return null;
   if (normalized.includes('hafta') || normalized.includes('weekly') || normalized.includes('seven_days') || normalized.includes('7_gun') || normalized.includes('7gun') || /(^|_)7(_|$)/.test(normalized)) return 'SEVEN_DAYS';
-  if (normalized.includes('aylik') || normalized.includes('1_ay') || normalized.includes('monthly') || normalized.includes('one_month') || normalized.includes('thirty_days') || normalized.includes('30_days') || normalized.includes('30_gun') || normalized.includes('1_month') || normalized.includes('aylik') || /(^|_)30(_|$)/.test(normalized)) return 'ONE_MONTH';
+  if (normalized.includes('aylik') || normalized.includes('1_ay') || normalized.includes('monthly') || normalized.includes('one_month') || normalized.includes('thirty_days') || normalized.includes('30_days') || normalized.includes('30_gun') || normalized.includes('1_month') || /(^|_)30(_|$)/.test(normalized)) return 'ONE_MONTH';
   if (normalized.includes('lifetime') || normalized.includes('sinirsiz') || normalized.includes('omur_boyu') || normalized.includes('unlimited') || normalized.includes('omur')) return 'LIFETIME';
   return null;
 }
@@ -298,7 +290,7 @@ export async function validateLicense(request: IncomingMessage, response: Server
     const body = await readBody(request);
     const token = clean(body.licenseKey ?? body.overlayToken ?? body.token, 64);
     const license = await LicenseService.validateToken(token);
-    if (!license) { send(response, 403, { status: 'error', message: 'Lisans süresi dolmuş veya geçersiz.'); return; }
+    if (!license) { send(response, 403, { status: 'error', message: 'Lisans süresi dolmuş veya geçersiz.' }); return; }
     send(response, 200, { status: 'ok', license: { id: license.id, licenseKey: license.licenseKey, customerName: license.customerName, planType: publicPlanType(license.planType), expiresAt: license.expiresAt, isActive: license.isActive } });
   } catch (error) { send(response, 400, { status: 'error', message: error instanceof Error ? error.message : 'Geçersiz istek.' }); }
 }
@@ -320,14 +312,14 @@ export async function shopierWebhook(request: IncomingMessage, response: ServerR
   const expected = createHmac('sha256', secret).update(`${random}${orderId}${total}${currency}`).digest();
   if (received.length !== expected.length || !timingSafeEqual(received, expected)) { send(response, 401, { status: 'error', message: 'Shopier imzası geçersiz.' }); return; }
   const amount = Number(total.replace(',', '.'));
-    const variationValue = body.product_variation ?? body.variation ?? body.variant ?? body.product_name ?? body.productName ?? body.item_name ?? body.option;
-    const variation = variationValue === undefined ? null : parsePlan(variationValue);
-    const amountPlan = plans.find((candidate) => Math.abs(candidate.amount - amount) < 0.005);
-    const plan = variation ? (amountPlan?.type === variation ? amountPlan : null) : amountPlan;
+  const variationValue = body.product_variation ?? body.variation ?? body.variant ?? body.product_name ?? body.productName ?? body.item_name ?? body.option;
+  const variation = variationValue === undefined ? null : parsePlan(variationValue);
+  const amountPlan = plans.find((candidate) => Math.abs(candidate.amount - amount) < 0.005);
+  const plan = variation ? (amountPlan?.type === variation ? amountPlan : null) : amountPlan;
   if (!plan || !['TRY', '0'].includes(currency.toUpperCase())) { send(response, 400, { status: 'error', message: 'Ödeme tutarı tanımlı lisans paketleriyle eşleşmiyor.' }); return; }
   const customerName = [clean(body.first_name ?? body.customer_name ?? body.name, 100), clean(body.last_name, 100)].filter(Boolean).join(' ').trim();
-    const buyerEmail = clean(body.email ?? body.customer_email ?? body.buyerEmail, 254).toLowerCase();
-    if (!customerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) { send(response, 400, { status: 'error', message: 'Shopier müşteri adı veya e-postası geçersiz.' }); return; }
+  const buyerEmail = clean(body.email ?? body.customer_email ?? body.buyerEmail, 254).toLowerCase();
+  if (!customerName || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyerEmail)) { send(response, 400, { status: 'error', message: 'Shopier müşteri adı veya e-postası geçersiz.' }); return; }
   try {
     const prisma = getPrismaClient();
     const existing = await prisma.license.findUnique({ where: { orderId } });
@@ -348,10 +340,21 @@ export async function adminLicenses(request: IncomingMessage, response: ServerRe
     const prisma = getPrismaClient();
     if (request.method === 'GET') { const licenses = await prisma.license.findMany({ orderBy: { createdAt: 'desc' }, take: 500 }); send(response, 200, { status: 'ok', licenses }); return; }
     if (!['POST', 'PATCH', 'DELETE'].includes(request.method ?? '')) { response.setHeader('Allow', 'GET, POST, PATCH, DELETE'); send(response, 405, { status: 'error', message: 'Bu endpoint GET, POST, PATCH ve DELETE kabul eder.' }); return; }
-    const body = await readBody(request); const action = request.method === 'POST' ? 'create' : request.method === 'PATCH' ? 'update' : 'delete';
-    // remaining admin logic kept as-is from previous version
-    send(response, 501, { status: 'error', message: 'Admin mutations not fully ported in this patch.' });
-  } catch (error) {
-    send(response, 500, { status: 'error', message: error instanceof Error ? error.message : 'Sunucu hatası.' });
-  }
+    const body = await readBody(request); const action = request.method === 'DELETE' ? 'deactivate' : clean(body.action, 32);
+    if (action === 'create') {
+      const name = clean(body.customerName, 120); const email = clean(body.buyerEmail ?? body.customerEmail, 254).toLowerCase(); const planType = parsePlan(body.planType);
+      if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !planType) { send(response, 400, { status: 'error', message: 'Ad, geçerli e-posta ve geçerli paket zorunlu.' }); return; }
+      const orderId = clean(body.orderId, 160) || `ADMIN-${randomUUID()}`;
+      const license = await LicenseService.create({ customerName: name, buyerEmail: email, orderId, planType }); send(response, 201, { status: 'ok', licenseKey: license.licenseKey, license }); return;
+    }
+    const id = clean(body.id ?? new URL(request.url ?? '/', 'http://localhost').searchParams.get('id'), 64);
+    if (!id) { send(response, 400, { status: 'error', message: 'Lisans ID gerekli.' }); return; }
+    if (action === 'extend') {
+      const days = Number(body.days); if (!Number.isInteger(days) || days < 1 || days > 3650) { send(response, 400, { status: 'error', message: 'Uzatma 1-3650 gün aralığında olmalı.' }); return; }
+      const license = await LicenseService.extend(id, days); if (!license) { send(response, 404, { status: 'error', message: 'Lisans bulunamadı.' }); return; }
+      send(response, 200, { status: 'ok', license }); return;
+    }
+    if (action === 'deactivate') { const result = await LicenseService.deactivate(id); if (!result.count) { send(response, 404, { status: 'error', message: 'Lisans bulunamadı.' }); return; } send(response, 200, { status: 'ok' }); return; }
+    send(response, 400, { status: 'error', message: 'Geçersiz admin işlemi.' });
+  } catch (error) { send(response, 400, { status: 'error', message: error instanceof Error ? error.message : 'Admin işlemi başarısız.' }); }
 }
