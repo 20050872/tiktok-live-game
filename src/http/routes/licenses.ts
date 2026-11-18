@@ -1,13 +1,14 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { getPrismaClient } from '../../database/prisma';
+import { SHOPIER_PRODUCTS } from '../../config/shopierProducts';
 import { LicenseService, type PlanType } from '../../services/LicenseService';
 
 type RecordValue = Record<string, unknown>;
 const plans: Array<{ type: PlanType; label: string; days: number | null; amount: number; url: string }> = [
-  { type: 'SEVEN_DAYS', label: 'Haftalık', days: 7, amount: Number(process.env.SHOPIER_WEEKLY_AMOUNT || 500), url: process.env.SHOPIER_WEEKLY_URL || '' },
-  { type: 'ONE_MONTH', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 1000), url: process.env.SHOPIER_MONTHLY_URL || '' },
-  { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 2500), url: process.env.SHOPIER_LIFETIME_URL || '' },
+  { type: 'SEVEN_DAYS', label: 'Haftalık', days: 7, amount: Number(process.env.SHOPIER_WEEKLY_AMOUNT || 500), url: SHOPIER_PRODUCTS.weekly.url },
+  { type: 'ONE_MONTH', label: 'Aylık', days: 30, amount: Number(process.env.SHOPIER_MONTHLY_AMOUNT || 1000), url: SHOPIER_PRODUCTS.monthly.url },
+  { type: 'LIFETIME', label: 'Sınırsız', days: null, amount: Number(process.env.SHOPIER_LIFETIME_AMOUNT || 2500), url: SHOPIER_PRODUCTS.lifetime.url },
 ];
 function send(response: ServerResponse, status: number, body: object) { response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(JSON.stringify(body)); }
 function sendOsb(response: ServerResponse, status: number, body: string) { response.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }); response.end(body); }
@@ -132,10 +133,10 @@ function inspectProductList(value: unknown): { ids: string[]; names: string[]; a
 function resolveOsbPlan(payload: RecordValue): { plan: PlanType | null; reason: string; productIds: string[]; amounts: number[] } {
   const product = inspectProductList(payload.productlist);
   const configuredIds: Array<{ env: string; type: PlanType }> = [
-    { env: process.env.SHOPIER_PRODUCT_ID_TEST?.trim() ?? '', type: 'TEST' },
-    { env: process.env.SHOPIER_PRODUCT_ID_WEEKLY?.trim() ?? '', type: 'SEVEN_DAYS' },
-    { env: process.env.SHOPIER_PRODUCT_ID_MONTHLY?.trim() ?? '', type: 'ONE_MONTH' },
-    { env: process.env.SHOPIER_PRODUCT_ID_LIFETIME?.trim() ?? '', type: 'LIFETIME' },
+    { env: SHOPIER_PRODUCTS.testProductId ?? '', type: 'TEST' },
+    { env: SHOPIER_PRODUCTS.weekly.productId, type: 'SEVEN_DAYS' },
+    { env: SHOPIER_PRODUCTS.monthly.productId, type: 'ONE_MONTH' },
+    { env: SHOPIER_PRODUCTS.lifetime.productId, type: 'LIFETIME' },
   ];
   for (const id of product.ids) {
     const match = configuredIds.find((configured) => configured.env && configured.env === id);
@@ -206,6 +207,9 @@ export async function shopierOsbCallback(request: IncomingMessage, response: Ser
     sendOsb(response, 400, 'invalid order'); return;
   }
   const plan = resolved.plan;
+  if (!resolved.reason.startsWith('ürün ID eşleşmesi')) {
+    console.warn('[Shopier OSB] Plan ID ile eşleşmedi, yedekle bulundu', JSON.stringify({ orderid: orderId, plan, reason: resolved.reason, productIds: resolved.productIds }));
+  }
   console.info('[Shopier OSB] Paket eşleşti.', JSON.stringify({ orderid: orderId, plan, reason: resolved.reason, productIds: resolved.productIds }));
   if (plan === 'TEST') console.info('[TEST PLAN] Shopier test ürünü için 1 günlük lisans işleniyor.', JSON.stringify({ orderid: orderId, productIds: resolved.productIds }));
 
