@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { getPrismaClient } from '../../database/prisma';
 import { GameEventType } from '../../types/events';
 import type { GameEngineUpdate, GameState } from '../../services/GameEngine';
 import { LicenseService } from '../../services/LicenseService';
@@ -108,16 +107,12 @@ export async function simulateGameEvent(
     if (!isRecord(body)) throw new RequestError(400, 'JSON gövdesi bir nesne olmalı.');
 
     const overlayToken = typeof body.overlayToken === 'string' ? body.overlayToken.trim() : '';
-    const requestedPublisherId = typeof body.publisherId === 'string' ? body.publisherId.trim() : '';
-    if (!overlayToken && !requestedPublisherId) {
-      throw new RequestError(400, 'overlayToken veya publisherId gönderilmelidir.');
+    if (!overlayToken || !UUID_PATTERN.test(overlayToken)) {
+      throw new RequestError(401, 'Geçerli bir overlay token gerekli.');
     }
-    if (overlayToken && !UUID_PATTERN.test(overlayToken)) {
-      throw new RequestError(400, 'overlayToken UUID biçiminde olmalı.');
-    }
-    if (requestedPublisherId && !UUID_PATTERN.test(requestedPublisherId)) {
-      throw new RequestError(400, 'publisherId UUID biçiminde olmalı.');
-    }
+    const license = await LicenseService.validateToken(overlayToken);
+    if (!license) throw new RequestError(401, 'Token geçersiz veya lisans süresi dolmuş.');
+    const publisherId = license.id;
 
     const rawType = typeof body.eventType === 'string' ? body.eventType.trim().toUpperCase() : '';
     if (!Object.values(GameEventType).includes(rawType as GameEventType) && !['ARMY_GIFT', 'BOT_ARMY'].includes(rawType)) {
@@ -135,19 +130,6 @@ export async function simulateGameEvent(
     const rawPayload = body.payload === undefined ? {} : body.payload;
     if (!isRecord(rawPayload)) throw new RequestError(400, 'payload bir nesne olmalı.');
     const payload = rawType === 'ARMY_GIFT' || rawType === 'BOT_ARMY' ? {} : makeEventPayload(type, rawPayload);
-
-    let publisherId: string;
-    if (overlayToken) {
-      const license = await LicenseService.validateToken(overlayToken);
-      if (!license) throw new RequestError(403, 'Lisans süresi dolmuş veya geçersiz.');
-      publisherId = license.id;
-    } else {
-      const legacy = await getPrismaClient().user.findUnique({ where: { id: requestedPublisherId }, include: { subscription: true } });
-      if (!legacy || legacy.id !== requestedPublisherId || !legacy.subscription || legacy.subscription.expiresAt.getTime() <= Date.now() || !['trial', 'active'].includes(legacy.subscription.status)) {
-        throw new RequestError(403, 'Lisans süresi dolmuş veya geçersiz.');
-      }
-      publisherId = legacy.id;
-    }
 
     if (rawType === 'ARMY_GIFT') {
       if (!dependencies.simulateArmyGift) throw new RequestError(501, 'Ordu hediye simülasyonu kullanılamıyor.');

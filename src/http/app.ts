@@ -6,6 +6,7 @@ import { registerPublisher } from './routes/auth';
 import { getPublisherGameState, getPublisherInfo, publisherGameAction, startPublisherStream, stopPublisherStream } from './routes/publisher';
 import { simulateGameEvent, type SimulatedEventDependencies } from './routes/simulate-event';
 import { adminLicenses, shopierOsbCallback, shopierWebhook, storePlans, validateLicense } from './routes/licenses';
+import { LicenseService } from '../services/LicenseService';
 import type { PublisherGameSessionRegistry } from '../services/PublisherGameSessionRegistry';
 
 const testPagePath = join(process.cwd(), 'public', 'socket-test.html');
@@ -42,7 +43,7 @@ export const REGISTERED_HTTP_ROUTES = [
   'GET  /dashboard.html  (alias: /panel)',
   'GET  /overlay.html',
   'GET  /promo.html',
-  'GET  /socket-test.html  (alias: /socket-test)',
+  'GET  /socket-test.html  (alias: /socket-test; valid license token in ?token= required)',
   'GET  /legal/*',
   'POST /api/auth/register  (alias: /auth/register)',
   'GET  /api/publisher/info/:token  (alias: /publisher/info/:token)',
@@ -56,13 +57,13 @@ export const REGISTERED_HTTP_ROUTES = [
   'POST /api/verify-license',
   'POST /api/publisher/start-stream  (alias: /publisher/start-stream)',
   'POST /api/publisher/stop-stream  (alias: /publisher/stop-stream)',
-  'POST /api/test/simulate-event  (aliases: /api/simulate-event, /test/simulate-event, /simulate-event; trailing slash accepted)',
+  'POST /api/test/simulate-event  (aliases: /api/simulate-event, /test/simulate-event, /simulate-event; ENABLE_TEST_ENDPOINTS; valid license token required)',
 ] as const;
 
 export function logRegisteredHttpRoutes(): void {
   console.log('[HTTP] Kayıtlı rotalar:');
   for (const route of REGISTERED_HTTP_ROUTES) console.log(`  ${route}`);
-  console.log('  Not: Simülasyon endpoint’i production ortamında ENABLE_TEST_ENDPOINTS=true olmadıkça kapalıdır.');
+  console.log('  Not: Simülasyon endpoint’i production ortamında ENABLE_TEST_ENDPOINTS=true gerektirir ve her istekte geçerli overlay token doğrulanır.');
 }
 
 function normalizeRequestPath(requestUrl: string | undefined): string {
@@ -239,13 +240,22 @@ async function handleHttpRequest(
     return;
   }
   if (request.method === 'GET' && (pathname === '/socket-test' || pathname === '/socket-test.html')) {
+    const token = new URL(request.url ?? '/', 'http://localhost').searchParams.get('token')?.trim() ?? '';
+    if (!token) {
+      sendJson(response, 401, { status: 'error', message: 'Test sayfası için geçerli overlay token gerekli.' });
+      return;
+    }
     try {
+      if (!await LicenseService.validateToken(token)) {
+        sendJson(response, 401, { status: 'error', message: 'Token geçersiz veya lisans süresi dolmuş.' });
+        return;
+      }
       const page = await readFile(testPagePath);
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(page);
     } catch (error) {
-      console.error('Socket.IO test sayfası okunamadı:', error);
-      sendJson(response, 500, { status: 'error', message: 'Test sayfası yüklenemedi' });
+      console.error('[Test] Token doğrulaması veya test sayfası yüklemesi başarısız.');
+      sendJson(response, 503, { status: 'error', message: 'Test sayfası şu anda kullanılamıyor.' });
     }
     return;
   }
