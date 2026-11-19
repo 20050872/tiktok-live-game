@@ -15,6 +15,8 @@ const dashboardPagePath = join(process.cwd(), 'public', 'dashboard.html');
 const promoPagePath = join(process.cwd(), 'public', 'promo.html');
 const indexPagePath = join(process.cwd(), 'public', 'index.html');
 const adminPagePath = join(process.cwd(), 'public', 'admin.html');
+const faviconPath = join(process.cwd(), 'public', 'favicon.svg');
+const ogImagePath = join(process.cwd(), 'public', 'og-image.svg');
 const legalDirectory = join(process.cwd(), 'public', 'legal');
 const legalAssets = new Map<string, { file: string; contentType: string }>([
   ['/legal/', { file: 'index.html', contentType: 'text/html; charset=utf-8' }],
@@ -154,8 +156,8 @@ async function handleHttpRequest(
       sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' });
       return;
     }
-    if (process.env.NODE_ENV === 'production' && process.env.ENABLE_TEST_ENDPOINTS !== 'true') {
-      sendJson(response, 403, { status: 'error', message: 'Test endpoint’i production ortamında kapalı. ENABLE_TEST_ENDPOINTS=true ayarlayın.' });
+    if (process.env.ENABLE_TEST_ENDPOINTS !== 'true') {
+      sendJson(response, 403, { status: 'error', message: 'Test endpoint’i kapalı. Gerekliyse ENABLE_TEST_ENDPOINTS=true ayarlayın.' });
       return;
     }
     await simulateGameEvent(request, response, dependencies);
@@ -229,6 +231,17 @@ async function handleHttpRequest(
     }
     return;
   }
+  if (request.method === 'GET' && (pathname === '/favicon.svg' || pathname === '/og-image.svg')) {
+    try {
+      const asset = pathname === '/favicon.svg' ? faviconPath : ogImagePath;
+      const content = await readFile(asset);
+      response.writeHead(200, { 'Content-Type': 'image/svg+xml; charset=utf-8', 'X-Content-Type-Options': 'nosniff' });
+      response.end(content);
+    } catch {
+      sendJson(response, 500, { status: 'error', message: 'Görsel dosyası yüklenemedi.' });
+    }
+    return;
+  }
   if (request.method === 'GET' && (pathname === '/dashboard.html' || pathname === '/panel')) {
     try {
       const page = await readFile(dashboardPagePath);
@@ -240,6 +253,10 @@ async function handleHttpRequest(
     return;
   }
   if (request.method === 'GET' && (pathname === '/socket-test' || pathname === '/socket-test.html')) {
+    if (process.env.ENABLE_TEST_ENDPOINTS !== 'true') {
+      sendJson(response, 403, { status: 'error', message: 'Test endpoint’i kapalı.' });
+      return;
+    }
     const token = new URL(request.url ?? '/', 'http://localhost').searchParams.get('token')?.trim() ?? '';
     if (!token) {
       sendJson(response, 401, { status: 'error', message: 'Test sayfası için geçerli overlay token gerekli.' });

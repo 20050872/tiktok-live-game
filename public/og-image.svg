@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#171a2b"/><stop offset="1" stop-color="#080a12"/></linearGradient>
+    <linearGradient id="teams" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#68aaff"/><stop offset=".5" stop-color="#c4b8ff"/><stop offset="1" stop-color="#ff6476"/></linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="210" cy="365" r="220" fill="#347cff" opacity=".13"/><circle cx="1000" cy="350" r="230" fill="#ff405b" opacity=".13"/>
+  <text x="600" y="175" fill="#c4b8ff" font-family="Arial,sans-serif" font-size="24" font-weight="700" letter-spacing="6" text-anchor="middle">TIKTOK LIVE İÇİN İNTERAKTİF SAVAŞ OYUNU</text>
+  <text x="600" y="300" fill="#f6f7ff" font-family="Arial,sans-serif" font-size="72" font-weight="900" text-anchor="middle">Canlı yayınını</text>
+  <text x="600" y="390" fill="url(#teams)" font-family="Arial,sans-serif" font-size="72" font-weight="900" text-anchor="middle">dev bir savaş alanına dönüştür.</text>
+  <path d="M260 490H940" stroke="url(#teams)" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+  <text x="600" y="545" fill="#a9b0c4" font-family="Arial,sans-serif" font-size="26" text-anchor="middle">Kırmızı ve Mavi ordular • Hediyeler • Canlı liderlik tablosu</text>
+</svg>
