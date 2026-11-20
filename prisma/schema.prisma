@@ -20,6 +20,39 @@ enum LicensePlanType {
   TEST
 }
 
+enum AdvertiserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum AdCampaignStatus {
+  PENDING_REVIEW
+  ACTIVE
+  PAUSED
+  REJECTED
+  COMPLETED
+}
+
+enum AdBillingModel {
+  MONTHLY
+  CPM
+}
+
+enum AdPlacement {
+  HOME_TOP
+  HOME_MIDDLE
+  GAME_PAGE
+  SPONSOR_GRID
+}
+
+enum AdPaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
 model User {
   id            String        @id @default(uuid()) @db.Uuid
   tiktokUsername String        @unique
@@ -61,4 +94,99 @@ model ShopierOrder {
   planType  LicensePlanType
   createdAt DateTime        @default(now())
   license   License         @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+}
+
+model Advertiser {
+  id                    String           @id @default(uuid()) @db.Uuid
+  email                 String           @unique
+  companyName           String
+  contactName           String
+  passwordHash          String
+  status                AdvertiserStatus @default(PENDING)
+  firstCampaignApprovedAt DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  sessions              AdvertiserSession[]
+  campaigns             AdCampaign[]
+  payments              AdPayment[]
+}
+
+model AdvertiserSession {
+  id           String     @id @default(uuid()) @db.Uuid
+  advertiserId String     @db.Uuid
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  createdAt    DateTime   @default(now())
+  advertiser   Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  @@index([advertiserId, expiresAt])
+}
+
+model AdCampaign {
+  id             String           @id @default(uuid()) @db.Uuid
+  advertiserId   String           @db.Uuid
+  name           String
+  headline       String
+  description    String           @default("")
+  imageUrl       String
+  targetUrl      String
+  placement      AdPlacement
+  billingModel   AdBillingModel
+  status         AdCampaignStatus @default(PENDING_REVIEW)
+  monthlyPrice   Int?
+  cpmRate        Int?
+  budget         Int?
+  spent          Int              @default(0)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  approvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  advertiser     Advertiser       @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  impressions    AdImpression[]
+  clicks         AdClick[]
+  payments       AdPayment[]
+
+  @@index([status, placement, startsAt, endsAt])
+  @@index([advertiserId, createdAt])
+}
+
+model AdImpression {
+  id          String     @id @default(uuid()) @db.Uuid
+  campaignId  String     @db.Uuid
+  visitorHash String
+  day         String
+  placement   AdPlacement
+  createdAt   DateTime   @default(now())
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, visitorHash, day])
+  @@index([campaignId, createdAt])
+}
+
+model AdClick {
+  id         String     @id @default(uuid()) @db.Uuid
+  campaignId String     @db.Uuid
+  visitorHash String
+  placement  AdPlacement
+  createdAt  DateTime   @default(now())
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, createdAt])
+}
+
+model AdPayment {
+  id           String           @id @default(uuid()) @db.Uuid
+  advertiserId String           @db.Uuid
+  campaignId   String           @db.Uuid
+  orderId      String           @unique
+  amount       Int
+  currency     String           @default("TRY")
+  status       AdPaymentStatus  @default(PENDING)
+  paidAt       DateTime?
+  createdAt    DateTime         @default(now())
+  advertiser   Advertiser       @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  campaign     AdCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([advertiserId, createdAt])
 }
