@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dünya İstilası</title>
+<style>
+  :root {
+    --sea: #0d2233; --sea2: #12324a; --grid: #1b4560; --ink: #e8f1f5; --dim: #8fb0c2;
+    --land: #3a4a57; --gold: #f2c14e; --alert: #ff6b5e;
+    --font: "Trebuchet MS", "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: transparent; overflow: hidden; font-family: var(--font); color: var(--ink); }
+  #stage { position: absolute; left: 50%; top: 50%; width: 1080px; height: 1920px; transform-origin: center; background: var(--sea); display: grid; grid-template-rows: 200px 260px 1010px 1fr 90px; }
+  #top { display: flex; align-items: center; justify-content: space-between; padding: 0 48px; border-bottom: 2px solid var(--grid); }
+  #clock { font-size: 128px; font-weight: 800; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1; }
+  #clock.hot { color: var(--alert); }
+  #meta { text-align: right; }
+  #round { font-size: 38px; color: var(--dim); }
+  #phase { font-size: 52px; font-weight: 700; }
+  #phase.sprint { color: var(--gold); }
+  #board { padding: 14px 48px; display: grid; grid-template-columns: 1fr; align-content: center; gap: 6px; background: var(--sea2); }
+  .row { display: grid; grid-template-columns: 64px 36px 1fr auto; align-items: center; gap: 12px; font-size: 38px; height: 44px; }
+  .row .rank { color: var(--dim); text-align: right; }
+  .row .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,.5); }
+  .row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .pt { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .row:first-child .nm, .row:first-child .pt { color: var(--gold); }
+  #mapwrap { position: relative; background:
+      repeating-linear-gradient(0deg, transparent 0 79px, var(--grid) 79px 80px),
+      repeating-linear-gradient(90deg, transparent 0 79px, var(--grid) 79px 80px), var(--sea); }
+  #map { width: 1080px; height: 1010px; display: block; }
+  .tile rect { stroke: rgba(0,0,0,.45); stroke-width: 2; transition: fill .35s; }
+  .tile text { font-family: var(--font); text-anchor: middle; pointer-events: none; }
+  .tile .cn { font-size: 16px; font-weight: 700; }
+  .tile .on { font-size: 12px; opacity: .9; }
+  .tile.gold rect { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 0 8px var(--gold)); }
+  .tile.attacked rect { stroke: var(--alert); stroke-width: 4; stroke-dasharray: 6 4; animation: march .6s linear infinite; }
+  .tile.flash rect { animation: flash .9s ease-out; }
+  @keyframes march { to { stroke-dashoffset: -20; } }
+  @keyframes flash { 0% { stroke: #fff; stroke-width: 10; } 100% { stroke-width: 2; } }
+  #banner { position: absolute; left: 48px; right: 48px; top: 16px; text-align: center; font-size: 36px; font-weight: 700; background: rgba(13,34,51,.9); border: 2px solid var(--gold); border-radius: 14px; padding: 10px; display: none; }
+  #feed { padding: 18px 48px; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; border-top: 2px solid var(--grid); overflow: hidden; }
+  .ev { font-size: 34px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev.old { opacity: .55; }
+  .ev.hot { color: var(--gold); font-weight: 700; }
+  #hint { display: flex; align-items: center; justify-content: center; font-size: 34px; color: var(--dim); background: var(--sea2); }
+  #winner { position: absolute; inset: 0; background: rgba(5,14,22,.92); display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 24px; z-index: 5; }
+  #winner.show { display: flex; animation: rise .6s ease-out; }
+  #winner .crown { font-size: 220px; line-height: 1; }
+  #winner .title { font-size: 48px; color: var(--dim); }
+  #winner .name { font-size: 120px; font-weight: 800; color: var(--gold); padding: 0 40px; overflow-wrap: anywhere; }
+  #winner .pts { font-size: 56px; }
+  @keyframes rise { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  #conn { position: absolute; right: 12px; bottom: 100px; font-size: 22px; color: var(--alert); }
+  @media (prefers-reduced-motion: reduce) { .tile.attacked rect, .tile.flash rect, #winner.show { animation: none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="top"><div id="clock">00:00</div><div id="meta"><div id="round">Tur 1</div><div id="phase">Bağlanıyor</div></div></div>
+  <div id="board"></div>
+  <div id="mapwrap"><svg id="map" viewBox="0 0 1080 1010" role="img" aria-label="Dünya haritası"></svg><div id="banner"></div></div>
+  <div id="feed"></div>
+  <div id="hint">saldır Almanya · savun Türkiye · ittifak</div>
+  <div id="winner"><div class="crown">👑</div><div class="title">Dünya İmparatoru</div><div class="name" id="wname"></div><div class="pts" id="wpts"></div></div>
+  <div id="conn"></div>
+</div>
+<script>
+(function () {
+  const SIZES = { small: [78, 40], medium: [98, 44], large: [118, 48], capital: [134, 52] };
+  const PHASES = { opening: 'Çıkış', battle: 'Savaş', sprint: 'Son sprint x2', chaos: 'Kaos', intermission: 'Yeni tur geliyor' };
+  const MAP = { x0: 12, y0: 14, w: 1056, h: 982 };
+  const svg = document.getElementById('map');
+  const tiles = {};       // id -> { g, rect, cn, on, c, x, y }
+  let prevOwners = {};
+  let feedLines = [];
+
+  // sahne ölçekleme (OBS / tarayıcı penceresine sığdır)
+  function fit() { const s = Math.min(innerWidth / 1080, innerHeight / 1920); document.getElementById('stage').style.transform = `translate(-50%,-50%) scale(${s})`; }
+  addEventListener('resize', fit); fit();
+
+  // Avrupa/Afrika bölgesi (-15..45) daha geniş yer alır, yoğun bölgeler sıkışmasın
+  function xFrac(lon) {
+    if (lon < -15) return Math.max(0, (lon + 170) / 155) * 0.28;
+    if (lon <= 45) return 0.28 + ((lon + 15) / 60) * 0.34;
+    return 0.62 + Math.min(1, (lon - 45) / 135) * 0.37;
+  }
+  // boylam/enlem -> ekran, sonra çakışmaları gevşet (tile-map düzeni)
+  function layout(list) {
+    const n = list.map(c => {
+      const [w, h] = SIZES[c.class];
+      const x = MAP.x0 + xFrac(c.lon) * MAP.w, y = MAP.y0 + ((72 - c.lat) / 122) * MAP.h;
+      return { c, w, h, x, y, ox: x, oy: y };
+    });
+    for (let it = 0; it < 1500; it++) {
+      for (let i = 0; i < n.length; i++) for (let j = i + 1; j < n.length; j++) {
+        const a = n[i], b = n[j], gap = 6;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const ox = (a.w + b.w) / 2 + gap - Math.abs(dx), oy = (a.h + b.h) / 2 + gap - Math.abs(dy);
+        if (ox > 0 && oy > 0) {
+          if (ox < oy) { const s = (dx >= 0 ? 1 : -1) * (ox / 2 + 0.01); a.x -= s; b.x += s; }
+          else { const s = (dy >= 0 ? 1 : -1) * (oy / 2 + 0.01); a.y -= s; b.y += s; }
+        }
+      }
+      for (const t of n) {
+        t.x += (t.ox - t.x) * 0.002; t.y += (t.oy - t.y) * 0.002;
+        t.x = Math.max(MAP.x0 + t.w / 2, Math.min(MAP.x0 + MAP.w - t.w / 2, t.x));
+        t.y = Math.max(MAP.y0 + t.h / 2, Math.min(MAP.y0 + MAP.h - t.h / 2, t.y));
+      }
+    }
+    // son tur: yay çekmeden, çakışma kalmayana kadar ayır
+    for (let it = 0; it < 4000; it++) {
+      let moved = false;
+      for (let i = 0; i < n.length; i++) for (let j = i + 1; j < n.length; j++) {
+        const a = n[i], b = n[j], gap = 5;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const ox = (a.w + b.w) / 2 + gap - Math.abs(dx), oy = (a.h + b.h) / 2 + gap - Math.abs(dy);
+        if (ox > 0 && oy > 0) {
+          moved = true;
+          if (ox < oy) { const s = (dx >= 0 ? 1 : -1) * (ox * 0.55); a.x -= s; b.x += s; }
+          else { const s = (dy >= 0 ? 1 : -1) * (oy * 0.55); a.y -= s; b.y += s; }
+        }
+      }
+      for (const t of n) { t.x = Math.max(MAP.x0 + t.w / 2, Math.min(MAP.x0 + MAP.w - t.w / 2, t.x)); t.y = Math.max(MAP.y0 + t.h / 2, Math.min(MAP.y0 + MAP.h - t.h / 2, t.y)); }
+      if (!moved) break;
+    }
+    return n;
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  function build(list) {
+    for (const t of layout(list)) {
+      const g = mk('g', { class: 'tile', transform: `translate(${t.x - t.w / 2},${t.y - t.h / 2})` });
+      const rect = mk('rect', { width: t.w, height: t.h, rx: 6, fill: '#3a4a57' });
+      const cn = mk('text', { class: 'cn', x: t.w / 2, y: t.h / 2 - 2 });
+      const on = mk('text', { class: 'on', x: t.w / 2, y: t.h / 2 + 13 });
+      const max = Math.floor(t.w / 9);
+      cn.textContent = t.c.name.length > max ? t.c.name.slice(0, max - 1) + '.' : t.c.name;
+      g.append(rect, cn, on); svg.appendChild(g);
+      tiles[t.c.id] = { g, rect, cn, on, max: Math.floor(t.w / 10) };
+    }
+  }
+
+  function textColor(color) {
+    let r = 128, g = 128, b = 128;
+    if (color[0] === '#') { r = parseInt(color.slice(1, 3), 16); g = parseInt(color.slice(3, 5), 16); b = parseInt(color.slice(5, 7), 16); }
+    else { const m = color.match(/hsl\((\d+) (\d+)% (\d+)%\)/); if (m) { const l = +m[3] / 100; return l > 0.6 ? '#0d2233' : '#fff'; } }
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#0d2233' : '#fff';
+  }
+
+  function render(s) {
+    const mm = String(Math.floor(s.remainingSec / 60)).padStart(2, '0'), ss = String(s.remainingSec % 60).padStart(2, '0');
+    const clock = document.getElementById('clock'); clock.textContent = `${mm}:${ss}`; clock.classList.toggle('hot', s.phase === 'sprint' || s.phase === 'chaos');
+    document.getElementById('round').textContent = `Tur ${s.round}`;
+    const ph = document.getElementById('phase'); ph.textContent = PHASES[s.phase] || s.phase; ph.className = s.phase === 'sprint' ? 'sprint' : '';
+    const banner = document.getElementById('banner');
+    if (s.peaceUntil > s.now) { banner.style.display = 'block'; banner.textContent = 'Barış anlaşması: saldırı kapalı'; } else banner.style.display = 'none';
+
+    const board = document.getElementById('board'); board.textContent = '';
+    s.top5.slice(0, 5).forEach((p, i) => {
+      const row = document.createElement('div'); row.className = 'row';
+      const rk = document.createElement('span'); rk.className = 'rank'; rk.textContent = i + 1;
+      const dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = p.color;
+      const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = p.name;
+      const pt = document.createElement('span'); pt.className = 'pt'; pt.textContent = p.points;
+      row.append(rk, dot, nm, pt); board.appendChild(row);
+    });
+
+    const attacked = new Set(s.attacks.map(a => a.countryId));
+    for (const id in tiles) {
+      const t = tiles[id], owner = s.owners[id], pl = owner && s.players[owner];
+      const fill = pl ? pl.color : '#3a4a57';
+      t.rect.setAttribute('fill', fill);
+      const tc = pl ? textColor(fill) : '#c7d3db';
+      t.cn.setAttribute('fill', tc); t.on.setAttribute('fill', tc);
+      t.on.textContent = pl ? (pl.name.length > t.max ? pl.name.slice(0, t.max - 1) + '.' : pl.name) : '';
+      t.g.classList.toggle('gold', s.gold.includes(id));
+      t.g.classList.toggle('attacked', attacked.has(id));
+      if (prevOwners[id] !== owner && owner) { t.g.classList.remove('flash'); void t.g.getBoundingClientRect(); t.g.classList.add('flash'); }
+    }
+    prevOwners = Object.assign({}, s.owners);
+  }
+
+  const TEXT = {
+    claim: e => `${e.playerName} ${e.countryName} ülkesini aldı`,
+    attack_started: e => `${e.attackerName} saldırıyor: ${e.countryName}`,
+    attack_reinforced: e => `${e.attackerName} saldırıya katıldı: ${e.countryName}`,
+    attack_won: e => `${e.attackerName} ${e.countryName} ülkesini ele geçirdi`,
+    attack_failed: e => `${e.countryName} savunmayı tuttu`,
+    defense_added: e => `${e.playerName} ${e.countryName} savunmasını güçlendirdi`,
+    shield: e => `${e.playerName} ${e.countryName} için kalkan kurdu`,
+    soldiers: e => `${e.playerName} +${e.gained} asker`,
+    team_joined: e => `${e.playerName} ${e.team} takımına katıldı`,
+    round_start: e => `Tur ${e.round} başladı`,
+    chaos_emperor: () => 'Kaos İmparatoru herkese saldırıyor!',
+    earthquake: e => e.playerName ? `Deprem! ${e.playerName} kaybetti: ${e.lost.join(', ')}` : 'Deprem!',
+    peace: () => 'Barış anlaşması: 30 sn saldırı yok',
+    gold: e => `Altın ülkeler (x3 puan): ${e.countries.join(', ')}`,
+    phase: e => ({ sprint: 'Son sprint: hediyeler x2!', chaos: 'Kaos başlıyor!', battle: 'Savaş başladı' })[e.phase] || null,
+  };
+  const HOT = new Set(['attack_won', 'chaos_emperor', 'earthquake', 'gold', 'phase']);
+
+  function pushEvents(events) {
+    for (const e of events) {
+      if (e.type === 'round_end') showWinner(e);
+      const f = TEXT[e.type]; const msg = f && f(e);
+      if (msg) feedLines.push({ msg, hot: HOT.has(e.type) });
+    }
+    feedLines = feedLines.slice(-5);
+    const feed = document.getElementById('feed'); feed.textContent = '';
+    feedLines.forEach((l, i) => { const d = document.createElement('div'); d.className = 'ev' + (l.hot ? ' hot' : '') + (i < feedLines.length - 1 ? ' old' : ''); d.textContent = l.msg; feed.appendChild(d); });
+  }
+
+  let winTimer = null;
+  function showWinner(e) {
+    const w = document.getElementById('winner');
+    document.getElementById('wname').textContent = e.winnerName || 'Kazanan yok';
+    document.getElementById('wpts').textContent = e.winnerName ? `${e.points} puan` : '';
+    w.classList.add('show'); clearTimeout(winTimer); winTimer = setTimeout(() => w.classList.remove('show'), 12000);
+  }
+
+  fetch('/api/countries').then(r => r.json()).then(d => {
+    build(d.countries);
+    const es = new EventSource('/events');
+    const conn = document.getElementById('conn');
+    es.addEventListener('snapshot', m => { conn.textContent = ''; render(JSON.parse(m.data)); });
+    es.addEventListener('events', m => pushEvents(JSON.parse(m.data)));
+    es.onerror = () => { conn.textContent = 'bağlantı kopuk, yeniden deneniyor'; };
+  });
+})();
+</script>
+</body>
+</html>
