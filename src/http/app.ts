@@ -7,6 +7,7 @@ import { getPublisherGameState, getPublisherInfo, publisherGameAction, startPubl
 import { simulateGameEvent, type SimulatedEventDependencies } from './routes/simulate-event';
 import { adminLicenses, shopierOsbCallback, shopierWebhook, storePlans, validateLicense } from './routes/licenses';
 import { LicenseService } from '../services/LicenseService';
+import { advertiserRegister, advertiserLogin, advertiserMe, advertiserCampaigns, serveAd, trackAd, adminAds } from './routes/ads';
 import type { PublisherGameSessionRegistry } from '../services/PublisherGameSessionRegistry';
 
 const testPagePath = join(process.cwd(), 'public', 'socket-test.html');
@@ -39,6 +40,10 @@ export interface HttpServerDependencies extends SimulatedEventDependencies {
 
 export const REGISTERED_HTTP_ROUTES = [
   'GET  /health',
+  'POST /api/advertisers/register, /api/advertisers/login',
+  'GET  /api/advertiser/me, GET/POST /api/advertiser/campaigns',
+  'GET  /api/ads/serve, POST /api/ads/impression, POST /api/ads/click',
+  'GET/PATCH /api/admin/ads/campaigns, GET/PATCH /api/admin/ads/advertisers',
   'GET  /',
   'POST /, /api/shopier/callback, /shopier, /callback  (Shopier OSB res/hash callback)',
   'GET  /admin.html',
@@ -106,6 +111,25 @@ async function handleHttpRequest(
     return;
   }
 
+  if (pathname === '/api/advertisers/register' || pathname === '/api/advertisers/login') {
+    if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
+    if (pathname.endsWith('/register')) await advertiserRegister(request, response); else await advertiserLogin(request, response);
+    return;
+  }
+  if (pathname === '/api/advertiser/me') {
+    if (request.method !== 'GET') { response.setHeader('Allow', 'GET'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca GET kabul eder.' }); return; }
+    await advertiserMe(request, response); return;
+  }
+  if (pathname === '/api/advertiser/campaigns') { await advertiserCampaigns(request, response); return; }
+  if (pathname === '/api/ads/serve') {
+    if (request.method !== 'GET') { response.setHeader('Allow', 'GET'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca GET kabul eder.' }); return; }
+    await serveAd(request, response); return;
+  }
+  if (pathname === '/api/ads/impression' || pathname === '/api/ads/click') {
+    if (request.method !== 'POST') { response.setHeader('Allow', 'POST'); sendJson(response, 405, { status: 'error', message: 'Bu endpoint yalnızca POST kabul eder.' }); return; }
+    await trackAd(request, response, pathname.endsWith('/impression') ? 'impression' : 'click'); return;
+  }
+  if (pathname === '/api/admin/ads/campaigns' || pathname === '/api/admin/ads/advertisers') { await adminAds(request, response); return; }
   if (pathname === '/api/auth/register') {
     if (request.method !== 'POST') {
       response.setHeader('Allow', 'POST');
