@@ -180,6 +180,7 @@ model AdPayment {
   advertiserId String           @db.Uuid
   campaignId   String           @db.Uuid
   orderId      String           @unique
+  shopierOrderId String?        @unique
   amount       Int
   currency     String           @default("TRY")
   status       AdPaymentStatus  @default(PENDING)
