@@ -140,8 +140,9 @@ export async function serveAd(req: IncomingMessage, res: ServerResponse): Promis
     const placement = clean(url.searchParams.get('placement'), 30);
     if (!placements.includes(placement as typeof placements[number])) { send(res, 400, { status: 'error', message: 'Geçersiz reklam alanı.' }); return; }
     const now = new Date();
-    const campaign = await getPrismaClient().adCampaign.findFirst({ where: { placement: placement as typeof placements[number], status: 'ACTIVE', OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }, { OR: [{ budget: null }, { spent: { lt: getPrismaClient().adCampaign.fields.budget } }] }] }, orderBy: { createdAt: 'asc' }, select: { id: true, headline: true, description: true, imageUrl: true, targetUrl: true, placement: true } });
-    send(res, 200, { status: 'ok', ad: campaign });
+    const candidates = await getPrismaClient().adCampaign.findMany({ where: { placement: placement as typeof placements[number], status: 'ACTIVE', OR: [{ startsAt: null }, { startsAt: { lte: now } }], AND: [{ OR: [{ endsAt: null }, { endsAt: { gt: now } }] }] }, orderBy: { createdAt: 'asc' }, take: 25, select: { id: true, headline: true, description: true, imageUrl: true, targetUrl: true, placement: true, budget: true, spent: true } });
+    const campaign = candidates.find(item => item.budget === null || item.spent < item.budget) ?? null;
+    send(res, 200, { status: 'ok', ad: campaign ? { id: campaign.id, headline: campaign.headline, description: campaign.description, imageUrl: campaign.imageUrl, targetUrl: campaign.targetUrl, placement: campaign.placement } : null });
   } catch { send(res, 500, { status: 'error', message: 'Reklam yüklenemedi.' }); }
 }
 
