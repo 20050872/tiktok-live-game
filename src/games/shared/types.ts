@@ -1,4 +1,4 @@
-import type { StandardGameEvent } from '../types/events';
+import type { StandardGameEvent } from '../../types/events';
 
 /**
  * Her oyunun uygulaması gereken ortak arayüz.
