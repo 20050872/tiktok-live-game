@@ -15,24 +15,26 @@ class ArmyGameAdapter implements IGameEngine {
 
   start(): void {
     if (this.started) return;
+    this.engine.start();
     this.started = true;
   }
 
   stop(): void {
+    this.engine.stop();
     this.started = false;
   }
 
   processEvent(event: StandardGameEvent): GameUpdate {
-    const gameState = this.engine.handleEvent(event) as ArmyState;
-    return { event, gameState };
+    this.engine.process(event);
+    return { event, gameState: this.engine.getState() };
   }
 
   getState(): ArmyState {
-    return this.engine.getState() as ArmyState;
+    return this.engine.getState();
   }
 
   reset(): void {
-    this.engine.reset();
+    this.engine.resetRound();
   }
 }
 
