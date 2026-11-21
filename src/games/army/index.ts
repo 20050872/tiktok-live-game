@@ -1,6 +1,6 @@
-import { ArmyBattleEngine } from '../services/ArmyBattleEngine';
-import type { StandardGameEvent } from '../types/events';
-import type { ArmyState } from '../types/army';
+import { ArmyBattleEngine } from '../../services/ArmyBattleEngine';
+import type { StandardGameEvent } from '../../types/events';
+import type { ArmyState } from '../../types/army';
 import type { GameDefinition, GameUpdate, IGameEngine } from '../shared/types';
 
 /**
@@ -41,4 +41,4 @@ export const armyGame: GameDefinition = {
   displayName: 'Ordu Savaşı',
   description: 'Kırmızı ve mavi takımların hediyelerle asker üretip savaştığı klasik ordu oyunu.',
   createEngine: () => new ArmyGameAdapter(),
-);
+};
